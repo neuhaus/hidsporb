@@ -12,3 +12,6 @@ OrbLogicalAxisValue(IN PORB_DATA orbData,
 
 USHORT
 OrbMapButtons(IN PORB_DATA orbData);
+
+USHORT
+OrbUsePrecision(IN PORB_DATA orbData, USHORT buttonmap );

@@ -88,6 +88,7 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	HIDSPORB_REPORT localReport;
 	ULONG i;
 	HIDSPORB_MOUSE_REPORT mouseRep;
+	USHORT use_precision;
 
 	// Dequeue item
 	item = OrbDequeueReadReport(devExt);
@@ -103,10 +104,6 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	// Note, we can have many reports
 #if 1
 	localReport.reportId = 1;
-	// Copy Axes
-	for (i = 0; i < ORB_NUM_AXES; i++) {
-		localReport.Axes[i] = OrbLogicalAxisValue(orbData, i, 0);
-	}
 	// Copy buttons
 	localReport.buttonMap = OrbMapButtons(orbData);
 //#if DBG
@@ -114,6 +111,12 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	DbgOut(ORB_DBG_REPORT, ("OrbCompletePacket(): buttons %x\n", (ULONG) localReport.buttonMap));
 	}
 //#endif
+	//are we using precision?
+	use_precision = OrbUsePrecision(orbData, localReport.buttonMap);
+	// Copy Axes
+	for (i = 0; i < ORB_NUM_AXES; i++) {
+		localReport.Axes[i] = OrbLogicalAxisValue(orbData, i, use_precision);
+	}
 	// Copy report
 	RtlCopyMemory(report, &localReport, sizeof(HIDSPORB_REPORT));
 	// Unlock ORB mapping data

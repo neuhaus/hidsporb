@@ -95,3 +95,26 @@ OrbMapButtons(IN PORB_DATA orbData)
 
 	return result;
 }
+
+USHORT
+OrbUsePrecision(IN PORB_DATA orbData, USHORT buttonmap)
+{
+  USHORT Result = 0;
+  if (orbData->precision_button_type == HIDSPORB_BUTTON_TYPE_LOGICAL)
+    {
+      if (( orbData->precision_button_index >= 0 ) &&
+	  ( orbData->precision_button_index < ORB_MAX_LOGICAL_BUTTONS ))
+	{
+	  Result = buttonmap & (1 << orbData->precision_button_index);
+	}
+    }
+  else if ( orbData->precision_button_type == HIDSPORB_BUTTON_TYPE_PHYSICAL)
+    {
+      if (( orbData->precision_button_index >= 0 ) &&
+	  ( orbData->precision_button_index < ORB_MAX_PHYS_BUTTONS ))
+	{
+	  Result = orbData->buttons[ orbData->precision_button_index ];
+	}
+    }
+  return Result;
+}
