@@ -429,7 +429,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   // Force PNP to rescan our BUS
   if (devExt->Started) {
       DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): invdevrel sent\n"));
-      //IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
+      IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
   }
   // Release remove lock
   IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
@@ -467,13 +467,16 @@ OrbNotifyRemoval(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
        }
   }
   if (found) {
+      // Decrement number of devices
       devExt->numDevices--;
+      // Delete device object
+      IoDeleteDevice(pdevExt->devObj);
   }
   // Unlock PDOs array
   OrbUnlockPdos(devExt);
   if (found) {
       DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): invdevrel sent\n"));
-      //IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
+      IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
   }
   DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): exit\n"));
 }
