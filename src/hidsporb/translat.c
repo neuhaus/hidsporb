@@ -77,7 +77,7 @@ OrbMapButtons(IN PORB_DATA orbData)
 
 	for (i = ORB_NUM_PHYS_BUTTONS - 2; i > 1; --i) {
 		// result <<= 1;
-		result |= (orbData->buttons[i]) ? (1 << i) : 0;
+		result |= (orbData->buttons[i]) ? (1 << (i-2)) : 0;
 	}
 
 	result <<= (chord_page * 4);
