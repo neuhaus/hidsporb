@@ -4,6 +4,7 @@
 // Initialization & unload functions
 //
 #define	DEFINE_GUID
+#include <initguid.h>
 
 #include "hidsporb.h"
 

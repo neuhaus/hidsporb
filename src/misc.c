@@ -4,7 +4,7 @@
 // Miscelanneous functions
 //
 
-#include "hidsporb.h"
+#include <wdm.h>
 
 // Complete Irp
 NTSTATUS

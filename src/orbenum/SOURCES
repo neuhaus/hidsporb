@@ -5,7 +5,23 @@ TARGETPATH=obj
 TARGETTYPE=DRIVER
 TARGETLIBS=$(DDK_LIB_PATH)\ntoskrnl.lib
 
-INCLUDES=..\
+INCLUDES=..\;..\shared
 
-SOURCES=initunlo.c pnp.c power.c wmi.c dispatch.c fdo.c pdo.c misc.c \
-	detect.c notify.c lock.c serial.c orbio.c debug.c orbenum.rc
+SOURCES= \
+initunlo.c \
+pnp.c \
+power.c \
+wmi.c \
+dispatch.c \
+fdo.c \
+pdo.c \
+misc.c \
+detect.c \
+notify.c \
+lock.c \
+orbio.c \
+debug.c \
+..\serial.c \
+..\misc.c \
+orbenum.rc 
+

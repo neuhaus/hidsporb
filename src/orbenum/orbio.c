@@ -65,9 +65,13 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
   //	lineControl.WordLength = 8;
   //	lineControl.Parity = NO_PARITY;
   //	lineControl.StopBits = STOP_BIT_1;
-  lineControl.WordLength = 8;
-  lineControl.Parity = 0;
-  lineControl.StopBits = 0;
+#define SERIAL_8_DATA       ((UCHAR)0x08)
+#define SERIAL_1_STOP       ((UCHAR)0x00)
+#define SERIAL_NONE_PARITY  ((UCHAR)0x00)
+
+  lineControl.WordLength = SERIAL_8_DATA;
+  lineControl.Parity = SERIAL_1_STOP;
+  lineControl.StopBits = SERIAL_NONE_PARITY;
   // Set word size, stop bits and parity stuff
   status = OrbSerSetLineControl(devObj, &lineControl);
   if (!NT_SUCCESS(status)) 
@@ -162,6 +166,7 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
   ULONG nRead, i;
   NTSTATUS status;
   SERIAL_TIMEOUTS timeouts;
+  PIRP Irp;
 
   DbgOut(("OrbReadSomething(): enter\n"));
   timeouts.ReadIntervalTimeout = MAXULONG;
@@ -173,8 +178,17 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
       //
       DbgOut(("OrbReadSomething(): failed timeout\n"));
     }
+
+  //allocate a read IRP
+  Irp = IoAllocateIrp( devObj->StackSize + 1, FALSE );
+  if ( Irp == NULL )
+    {
+      DbgOut(( "OrbReadSomething: No Irp"));
+      goto failed;
+    }
+
   // Write something
-  status = OrbSerWriteChar(devObj, '\0d');
+  status = OrbSerWriteChar(devObj, Irp, '\0d');
   if (!NT_SUCCESS(status)) 
     {
       DbgOut(("OrbReadSomething(): cant write\n"));
@@ -182,13 +196,13 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
     }
   // Set up first read call
   nRead = 0;
-  status = OrbSerReadChar(devObj, &buffer[nRead]);
+  status = OrbSerReadChar(devObj, Irp, &buffer[nRead]);
   // While we're reading something
   while (NT_SUCCESS(status) && (nRead < 253)) 
     {
       buffer[nRead] &= 0x7f;
       nRead++;
-      status = OrbSerReadChar(devObj, &buffer[nRead]);
+      status = OrbSerReadChar(devObj, Irp, &buffer[nRead]);
     }
   DbgOut(("OrbReadSomething(): read %d bytes, status %x\n", nRead, status));
   // Print buffer contents
@@ -202,6 +216,10 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
     }
   //DbgOut(("OrbReadSomething(): %s\n", &buffer[0]));
   DbgOut(("\nOrbReadSomething(): Buffer end\n"));
+  
+  //free our Irp
+  IoFreeIrp( Irp );
+
  failed:
   DbgOut(("OrbReadSomething(): exit\n"));
 }

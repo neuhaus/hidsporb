@@ -3,7 +3,8 @@
 //
 // Initialization & unload functions
 //
-
+#define	DEFINE_GUID
+#include <initguid.h>
 #include "orbenum.h"
 
 #ifdef ALLOC_PRAGMA

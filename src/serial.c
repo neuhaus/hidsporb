@@ -5,7 +5,15 @@
 //
 
 // This file is independent from driver which uses it
-#include "serinc.h"
+//#include "serinc.h"
+
+#include "serial.h"
+#ifndef DEBUG_H
+#include "debug.h"
+#endif
+#ifndef MISC_H
+#include "misc.h"
+#endif
 
 #ifndef	IoReuseIrp
 NTKERNELAPI VOID

@@ -3,6 +3,8 @@
 //
 
 // debug functions
+// Serial I/O debugging
+#define	ORB_DBG_SER	(1 << 1)
 
 #if DBG
 PCHAR

@@ -2,6 +2,15 @@
 // serial.h
 //
 
+#ifndef SERIAL_H
+#define SERIAL_H
+
+#include <stddef.h>
+#include <memory.h>
+#include <wdm.h>
+#include <wdmguid.h>
+#include <ntddser.h>
+
 NTSTATUS
 OrbSerSyncIoctl(IN PDEVICE_OBJECT devObj,
 		IN BOOLEAN Internal,
@@ -84,3 +93,5 @@ OrbSerClrRts(IN PDEVICE_OBJECT devObj);
 
 NTSTATUS
 OrbSerFlush(IN PDEVICE_OBJECT devObj, IN ULONG Mask);
+
+#endif

@@ -1,10 +1,6 @@
 #include <stddef.h>
 #include <memory.h>
 #include <wdm.h>
-#define	DEFINE_GUID
-#include <initguid.h>
-#include <wdmguid.h>
-#include <ntddser.h>
 
 #ifndef	_ORBENUM_H_
 #define _ORBENUM_H_

@@ -286,7 +286,7 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
   if ( OrbBufferContainsBallStartupString( buffer, 256 ) )
     {
       DbgOut(( "OrbNotifyCheck(): ****DETECTED SPACEBALL****" ));
-      model = 1;
+      //      model = 1; disabled to further test hidsporb driver
     }
   OrbPowerDown(devObj);
 failed:
@@ -389,6 +389,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   DbgOut(("OrbNotifyArrival(): got dev obj %p, file obj %p\n", devObj, fileObj));
   // Get ORB model
   model = OrbNotifyCheck(devObj);
+  DbgOut(("OrbNotifyArrival(): found orb, model %d", model ));
   // Deref file object if we didn't find ORB
   if (model == 0xffff) {
       DbgOut(("OrbNotifyArrival(): ORB not detected\n"));

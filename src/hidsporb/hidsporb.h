@@ -8,10 +8,6 @@
 #include <hidusage.h>
 #include <hidport.h>
 
-#include <initguid.h>
-#include <wdmguid.h>
-#include <ntddser.h>
-
 #define HIDSPORB_TAG	'brOH'
 
 #ifndef ORBDATA_H
