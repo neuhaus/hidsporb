@@ -14,7 +14,6 @@
 
 #define HIDSPORB_TAG	'brOH'
 
-#include "orb.h"
 #ifndef ORBDATA_H
 #include "orbdata.h"
 #endif

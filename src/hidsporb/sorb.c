@@ -88,7 +88,7 @@ SOrbInit(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData,
 	orbData->parsePacketContext = parseContext;
 	status = STATUS_SUCCESS;
 failed:
-	DbgOut(ORB_DBG_DETECT | ORB_DBG_PARSE, ("SOrbInit(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_DETECT | ORB_DBG_SORB, ("SOrbInit(): exit, status %x\n", status));
 
 	return status;
 }
@@ -116,7 +116,7 @@ SOrbParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	if (orbData->bufferCursor >= (ORB_PACKET_BUFFER_LENGTH - 1)) {
 		OrbClearBuffer(orbData, ORB_UNKNOWN_PACKET);
 	}
-	DbgOut( ORB_DBG_PARSE, ( "Parsing 0x%x", c ));
+	DbgOut( ORB_DBG_SORB, ( "Parsing 0x%x", c ));
 	// Initialize packet type according to current char
 	switch (c) {
 	case 'R':
@@ -197,7 +197,7 @@ SOrbParsePacket(IN PORB_DATA orbData)
 	// Determine packet type
 	pktType = orbData->currPacketType;
 	if (pktType < (sizeof(pktStr)/sizeof(pktStr[0]))) {
-		DbgOut(ORB_DBG_PARSE, ("SOrbParsePacket(): %s packet, len %d", pktStr[pktType], orbData->bufferCursor));
+		DbgOut(ORB_DBG_SORB, ("SOrbParsePacket(): %s packet, len %d", pktStr[pktType], orbData->bufferCursor));
 	}
 	// Update packets stat
 	orbData->numPackets[orbData->currPacketType]++;
@@ -209,7 +209,7 @@ SOrbParsePacket(IN PORB_DATA orbData)
 VOID
 SOrbParseReset(IN PORB_DATA orbData)
 {
-        DbgOut( ORB_DBG_PARSE, ("parsing reset packet" ) );
+        DbgOut( ORB_DBG_SORB, ("parsing reset packet" ) );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
@@ -235,14 +235,15 @@ SOrbParseBallData(IN PORB_DATA orbData)
 	// set timer data?  removing this for now
 	// handle->timer = ((pch[10] & 0x07) << 7) | (pch[11] & 0x7F);
 	// Set axes
-	orbData->Axes[0] = ((((long) tx) << 22) >> 22);
-	orbData->Axes[1] = ((((long) ty) << 22) >> 22);
-	orbData->Axes[2] = ((((long) tz) << 22) >> 22);
-	orbData->Axes[3] = ((((long) rx) << 22) >> 22); 
-	orbData->Axes[4] = ((((long) ry) << 22) >> 22);
-	orbData->Axes[5] = ((((long) rz) << 22) >> 22);
+	OrbDataSetPhysicalAxes( orbData,
+				((((long) tx) << 22) >> 22),
+				((((long) ty) << 22) >> 22),
+				((((long) tz) << 22) >> 22),
+				((((long) rx) << 22) >> 22), 
+				((((long) ry) << 22) >> 22),
+				((((long) rz) << 22) >> 22) );
 	// Debug: print Axes
-	OrbPrintAxesBtns(orbData);
+	DbgPrintAxes( ORB_DBG_SORB, orbData );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
@@ -257,8 +258,8 @@ SOrbParseButtonData(IN PORB_DATA orbData)
 	buffer = orbData->packetBuffer;
 	// Get buttons
 	buttons = buffer[2];
-	DbgOut( ORB_DBG_PARSE, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
-	DbgOut(ORB_DBG_PARSE, ("SOrbParseButtonData(): buttons %x", (ULONG) buttons));
+	DbgOut( ORB_DBG_SORB, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
+	DbgOut(ORB_DBG_SORB, ("SOrbParseButtonData(): buttons %x", (ULONG) buttons));
 	// Update buttons
 	orbData->buttons[0] = buttons & 0x01;
 	orbData->buttons[1] = buttons & 0x02;
@@ -267,6 +268,8 @@ SOrbParseButtonData(IN PORB_DATA orbData)
 	orbData->buttons[4] = buttons & 0x10;
 	orbData->buttons[5] = buttons & 0x20;
 	orbData->buttons[6] = buttons & 0x40;
+
+	DbgPrintButtons( ORB_DBG_SORB, orbData );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
@@ -284,7 +287,7 @@ SOrbParseError(IN PORB_DATA orbData)
 	hardflt = (buffer[1] & 1) != 0;
 	checksum = (buffer[1] & 2) != 0;
 	brownout = (buffer[1] & 4) != 0;
-	DbgOut(ORB_DBG_PARSE, ("SOrbParseError(): hardflt %d checksum %d brownout %d\n", hardflt, checksum, brownout));
+	DbgOut(ORB_DBG_SORB, ("SOrbParseError(): hardflt %d checksum %d brownout %d\n", hardflt, checksum, brownout));
 	// Call appropriate function
 	OrbParseCallFunc(orbData);
 }
@@ -293,7 +296,7 @@ SOrbParseError(IN PORB_DATA orbData)
 VOID
 SOrbParseNullRegion(IN PORB_DATA orbData)
 {       
-        DbgOut( ORB_DBG_PARSE, ("Parsing null region packet" ));
+        DbgOut( ORB_DBG_SORB, ("Parsing null region packet" ));
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
@@ -302,7 +305,7 @@ SOrbParseNullRegion(IN PORB_DATA orbData)
 VOID
 SOrbParseTerm(IN PORB_DATA orbData)
 {
-  DbgOut( ORB_DBG_PARSE, ("Parsing Term packet")  );
+  DbgOut( ORB_DBG_SORB, ("Parsing Term packet")  );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }

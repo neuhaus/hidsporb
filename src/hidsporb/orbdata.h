@@ -1,6 +1,11 @@
 #ifndef ORBDATA_H
 #define ORBDATA_H
 
+#include <wdm.h>
+#ifndef ORB_H
+#include "orb.h"
+#endif
+
 #define	ORB_PACKET_BUFFER_LENGTH	60
 #define	ORB_MAX_PACKET_TYPE	        11
 #define ORB_UNKNOWN_PACKET              0
@@ -61,5 +66,61 @@ typedef struct _ORB_DATA {
 	int precision_button_index;
 	BOOLEAN new_null_region_pending;
 } ORB_DATA, *PORB_DATA;
+
+
+void
+OrbDataSetPhysicalAxis( PORB_DATA orb_data,
+			int index, 
+			LONG value );
+
+void
+OrbDataSetPhysicalAxes( PORB_DATA orb_data,
+			LONG tx, 
+			LONG ty, 
+			LONG tz,
+			LONG rx,
+			LONG ry,
+			LONG rz );
+
+void
+OrbDataSetPhysicalButton( PORB_DATA orb_data,
+			  int index,
+			  LONG value );
+
+void
+OrbDataSetPhysicalButtons7( PORB_DATA orb_data,
+			    int button_0,
+			    int button_1,
+			    int button_2,
+			    int button_3,
+			    int button_4,
+			    int button_5,
+			    int button_6);
+
+void
+OrbDataSetPhysicalButtons8( PORB_DATA orb_data,
+			    int button_0,
+			    int button_1,
+			    int button_2,
+			    int button_3,
+			    int button_4,
+			    int button_5,
+			    int button_6,
+			    int button_7 );
+
+void
+OrbDataSetPhysicalButtons12( PORB_DATA orb_data,
+			     int button_0,
+			     int button_1,
+			     int button_2,
+			     int button_3,
+			     int button_4,
+			     int button_5,
+			     int button_6,
+			     int button_7,
+			     int button_8, 
+			     int button_9,
+			     int button_10,
+			     int button_11 );
 
 #endif

@@ -13,5 +13,3 @@ OrbClearBuffer(IN PORB_DATA orbData, IN ULONG packetType);
 VOID
 OrbParseCallFunc(IN PORB_DATA orbData);
 
-VOID
-OrbPrintAxesBtns(IN PORB_DATA orbDate);

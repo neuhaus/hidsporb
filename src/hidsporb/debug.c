@@ -4,7 +4,7 @@
 
 #include "hidsporb.h"
 
-ULONG OrbDebugLevel = ORB_DBG_PARSE;//ORB_DBG_ALL;
+ULONG OrbDebugLevel = ORB_DBG_PARSE | ORB_DBG_SORB;
 
 #if DBG
 
@@ -47,5 +47,6 @@ PnpToString(UCHAR minor)
 
 	return PnpStrings[minor];
 }
+
 
 #endif

@@ -17,39 +17,36 @@ USHORT OrbPacketLen[] = {
 	15,     // displacement packet
 	3,      // button/key packet
         3,      // 4k advanced button/key packet
-        3,      // communications mode packet
-        3,      // sensitization mode packet
-        4,      // movement mode packet
-        2,      // null region packet
-        5,      // update rate packet
+        3,      // communications mode packet (not processed)
+        3,      // sensitization mode packet (not processed)
+        4,      // movement mode packet (not processed)
+        2,      // null region packet (not processed)
+        5,      // update rate packet (not processed)
         61,     // reset packet
         7,      // error packet
-        13,     // zero packet
+        13,     // zero packet (not processed)
 };
 
 // Forward declaration of several functions internal to this 
 // unit
 
 VOID
-SBallXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length);
-
-VOID
 SBallParsePacket(IN PORB_DATA orbData);
 
 VOID
-SBallParseReset(IN PORB_DATA orbData);
+SBallParseDisplacementPacket(IN PORB_DATA orbData);
 
 VOID
-SBallParseBallData(IN PORB_DATA orbData);
+SBallParseButtonKeyPacket(IN PORB_DATA orbData);
+
+VOID 
+SBallParseAdvancedButtonKeyPacket( IN PORB_DATA orbData );
 
 VOID
-SBallParseButtonData(IN PORB_DATA orbData);
+SBallParseResetPacket( IN PORB_DATA orbData );
 
 VOID
-SBallParseError(IN PORB_DATA orbData);
-
-VOID
-SBallParseNullRegion(IN PORB_DATA orbData);
+SBallParseErrorPacket(IN PORB_DATA orbData);
 
 VOID
 SBallParseTerm(IN PORB_DATA orbData);
@@ -139,12 +136,13 @@ SBallParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	case 'E':
 	  OrbClearBuffer(orbData, BALL_ERROR_PACKET);
 	  break;
+	case 'N':
+	  OrbClearBuffeR(orbData, BALL_NULL_PACKET);
 	//eat all of the following packet types
 	case 'Z': //zero packet
 	case 'C': //comm mode packet
 	case 'F': //sensitization packet
 	case 'M': //movement mode packet
-	case 'N': //null region packet
 	case 'P': //update rate packet
 	default:
 	  OrbClearBuffer(orbData, ORB_UNKNOWN_PACKET);
@@ -164,39 +162,37 @@ SBallParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	}
 }
 
-// Uncrypt packet contents
-VOID
-SBallXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length)
-{
-	ULONG i;
-	PCHAR strXor = "D.SpaceWare";
-
-	if (length > OrbPacketLen[pktType]) {
-		length = OrbPacketLen[pktType];
-	}
-	// Xor
-	for (i = 0; i < length; i++) {
-		buffer[i] ^= strXor[i];
-	}
-}
 
 static VOID (*SBallFuncs[])(IN PORB_DATA orbData) = {
 	NULL, // XXX todo
-	SBallParseReset,
-	SBallParseBallData,
-	SBallParseButtonData,
-	SBallParseError,
-	SBallParseNullRegion,
+	SBallParseDisplacementPacket,
+	SBallParseButtonKeyPacket,
+	SBallParseAdvancedButtonKeyPacket,
+	NULL, //comm packet
+	NULL, //comm packet
+	NULL, //sensitization packet
+	NULL, //movement packet
+	SBallParseNullRegionPacket, //null region packet
+	NULL, //update rate packet
+	SBallParseResetPacket,
+	SBallParseErrorPacket,
+	NULL, //zero packet
 	SBallParseTerm
 };
 
 PCHAR pktStr[] = {
 	"unknown",
+	"displacement",
+	"button/key",
+	"advanced button/key",
+	"comm",
+	"sensitization",
+	"movement",
+	"null",
+	"update rate",
 	"reset",
-	"balldata",
-	"buttondata",
 	"error",
-	"nullregion",
+	"zero",
 	"term"
 };
 
@@ -217,97 +213,177 @@ SBallParsePacket(IN PORB_DATA orbData)
 	(*SBallFuncs[pktType])(orbData);
 }
 
+
+VOID
+SBallParseDisplacementPacket( IN PORB_DATA orbData )
+{
+  LONG tx, ty, tz, rx, ry, rz;
+  PUCHAR pch;  
+
+  pch == orbData->packetBuffer;
+#define DISP_HELPER( p, i ) ((p[i] << 8) | (p[i+1]))
+  tx = DISP_HELPER( pch, 3 );
+  ty = DISP_HELPER( pch, 5 );
+  tz = DISP_HELPER( pch, 7 );
+  rx = DISP_HELPER( pch, 9 );
+  ry = DISP_HELPER( pch, 11 );
+  rz = DISP_HELPER( pch, 13 );
+
+  OrbDataSetPhysicalAxes( orbData, tx, ty, tz, rx, ry, rz );
+  OrbPrintAxesBtns( orbData );
+  //call our callback
+  OrbParseCallFunc( orbData );
+}
+
+
+#define SELECT_BIT( b, i ) ( b & ( 1 << i ) )
+
+// Parse button packet
+VOID
+SBallParseButtonKeyPacket(IN PORB_DATA orbData)
+{
+	UCHAR buttons;
+	PUCHAR pch;
+
+	pch = orbData->packetBuffer;
+	OrbDataSetPhysicalButtons8( orbData,
+				    SELECT_BIT( pch[ 1 ], 6 ),
+				    SELECT_BIT( pch[ 1 ], 7 ),
+				    SELECT_BIT( pch[ 2 ], 2 ),
+				    SELECT_BIT( pch[ 2 ], 3 ),
+				    SELECT_BIT( pch[ 1 ], 0 ),
+				    SELECT_BIT( pch[ 1 ], 1 ),
+				    SELECT_BIT( pch[ 1 ], 2 ),
+				    SELECT_BIT( pch[ 1 ], 4 ) );
+	DbgOut( ORB_DBG_SBALL, 
+		("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", 
+		 orbData->buttons[ 0 ],
+		 orbData->buttons[ 1 ],
+		 orbData->buttons[ 2 ],
+		 orbData->buttons[ 3 ],
+		 orbData->buttons[ 4 ],
+		 orbData->buttons[ 5 ],
+		 orbData->buttons[ 6 ],
+		 orbData->buttons[ 7 ],
+		 orbData->buttons[ 8 ],
+		 orbData->buttons[ 9 ],
+		 orbData->buttons[ 10 ],
+		 orbData->buttons[ 11 ] ));
+
+	// Call callback function
+	OrbParseCallFunc(orbData);
+}
+
+void
+SBallParseAdvancedButtonKeyPacket( IN PORB_DATA orbData )
+{
+  PUCHAR pch;
+  int is_lefty;
+
+  //TODO: if we got this packet and the orb is not flagged as a 4000,
+  //then it must be a 4000; set some flag indicating this
+  pch = orbData->packetBuffer;
+  is_lefty = ((pch[ 1 ] & 0x20) != 0);
+  DbgOut( ORB_DBG_SBALL, ("Lefty mode set: 0x%x", is_lefty));
+  
+  //how to handle lefty mode?  For now, we will **invert** the buttons
+  if ( is_lefty )
+    {
+      OrbDataSetPhysicalButtons12( orbData,
+				   SELECT_BIT( pch[ 1 ], 4 ),
+				   SELECT_BIT( pch[ 1 ], 3 ),
+				   SELECT_BIT( pch[ 1 ], 2 ),
+				   SELECT_BIT( pch[ 1 ], 1 ),
+				   SELECT_BIT( pch[ 1 ], 0 ),
+				   SELECT_BIT( pch[ 2 ], 7 ),
+				   SELECT_BIT( pch[ 2 ], 5 ),
+				   SELECT_BIT( pch[ 2 ], 4 ),
+				   SELECT_BIT( pch[ 2 ], 3 ),
+				   SELECT_BIT( pch[ 2 ], 2 ),
+				   SELECT_BIT( pch[ 1 ], 7 ),
+				   SELECT_BIT( pch[ 1 ], 6 ) );
+    }
+  else
+    {
+      OrbDataSetPhysicalButtons12( orbData,
+				   SELECT_BIT( pch[ 1 ], 6 ),
+				   SELECT_BIT( pch[ 1 ], 7 ),
+				   SELECT_BIT( pch[ 2 ], 2 ),
+				   SELECT_BIT( pch[ 2 ], 3 ),
+				   SELECT_BIT( pch[ 2 ], 4 ),
+				   SELECT_BIT( pch[ 2 ], 5 ),
+				   SELECT_BIT( pch[ 2 ], 7 ),
+				   SELECT_BIT( pch[ 1 ], 0 ),
+				   SELECT_BIT( pch[ 1 ], 1 ),
+				   SELECT_BIT( pch[ 1 ], 2 ),
+				   SELECT_BIT( pch[ 1 ], 3 ),
+				   SELECT_BIT( pch[ 1 ], 4 ) );
+	DbgOut( ORB_DBG_SBALL, 
+		("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", 
+		 orbData->buttons[ 0 ],
+		 orbData->buttons[ 1 ],
+		 orbData->buttons[ 2 ],
+		 orbData->buttons[ 3 ],
+		 orbData->buttons[ 4 ],
+		 orbData->buttons[ 5 ],
+		 orbData->buttons[ 6 ],
+		 orbData->buttons[ 7 ],
+		 orbData->buttons[ 8 ],
+		 orbData->buttons[ 9 ],
+		 orbData->buttons[ 10 ],
+		 orbData->buttons[ 11 ] ));
+    }
+}
+
+
+
 // Simple
 VOID
 SBallParseReset(IN PORB_DATA orbData)
 {
-        DbgOut( ORB_DBG_SBALL, ("parsing reset packet" ) );
-	// Call callback function
-	OrbParseCallFunc(orbData);
+  DbgOut( ORB_DBG_SBALL, ("parsing reset packet" ) );
+  // Call callback function
+  OrbParseCallFunc(orbData);
 }
 
-// Parse ball data packet
-VOID
-SBallParseBallData(IN PORB_DATA orbData)
-{
-	LONG tx, ty, tz, rx, ry, rz;
-	PUCHAR pch;
-
-	pch = orbData->packetBuffer;
-	// Xor packet
-	SBallXorPacket(pch, ORB_BALL_DATA_PACKET, orbData->bufferCursor);
-	// note that this starts with buffer[2], which means we're
-	// ignoring the new copy of the button data for now
-	tx = ((pch[2] & 0x7F) << 3) | ((pch[3] & 0x70) >> 4);
-	ty = ((pch[3] & 0x0F) << 6) | ((pch[4] & 0x7E) >> 1);
-	tz = ((pch[4] & 0x01) << 9) | ((pch[5] & 0x7F) << 2) | ((pch[6] & 0x60) >> 5);
-	rx = ((pch[6] & 0x1F) << 5) | ((pch[7] & 0x7C) >> 2);
-	ry = ((pch[7] & 0x03) << 8) | ((pch[8] & 0x7F) << 1) | ((pch[9] & 0x40) >> 6);
-	rz = ((pch[9]  & 0x3F) << 4) | ((pch[10] & 0x78) >> 3);
-	// set timer data?  removing this for now
-	// handle->timer = ((pch[10] & 0x07) << 7) | (pch[11] & 0x7F);
-	// Set axes
-	orbData->Axes[0] = ((((long) tx) << 22) >> 22);
-	orbData->Axes[1] = ((((long) ty) << 22) >> 22);
-	orbData->Axes[2] = ((((long) tz) << 22) >> 22);
-	orbData->Axes[3] = ((((long) rx) << 22) >> 22); 
-	orbData->Axes[4] = ((((long) ry) << 22) >> 22);
-	orbData->Axes[5] = ((((long) rz) << 22) >> 22);
-	// Debug: print Axes
-	OrbPrintAxesBtns(orbData);
-	// Call callback function
-	OrbParseCallFunc(orbData);
-}
-
-// Parse button packet
-VOID
-SBallParseButtonData(IN PORB_DATA orbData)
-{
-	UCHAR buttons;
-	PUCHAR buffer;
-
-	buffer = orbData->packetBuffer;
-	// Get buttons
-	buttons = buffer[2];
-	DbgOut( ORB_DBG_SBALL, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
-	DbgOut(ORB_DBG_SBALL, ("SBallParseButtonData(): buttons %x", (ULONG) buttons));
-	// Update buttons
-	orbData->buttons[0] = buttons & 0x01;
-	orbData->buttons[1] = buttons & 0x02;
-	orbData->buttons[2] = buttons & 0x04;
-	orbData->buttons[3] = buttons & 0x08;
-	orbData->buttons[4] = buttons & 0x10;
-	orbData->buttons[5] = buttons & 0x20;
-	orbData->buttons[6] = buttons & 0x40;
-	// Call callback function
-	OrbParseCallFunc(orbData);
-}
 
 // Parse error packet
 // todo: maybe we reset orb here???
 VOID
-SBallParseError(IN PORB_DATA orbData)
+SBallParseErrorPacket(IN PORB_DATA orbData)
 {
-	BOOLEAN brownout, checksum, hardflt;
-	PUCHAR buffer;
+  PUCHAR pch;
 
-	buffer = orbData->packetBuffer;
-	// Print error info
-	hardflt = (buffer[1] & 1) != 0;
-	checksum = (buffer[1] & 2) != 0;
-	brownout = (buffer[1] & 4) != 0;
-	DbgOut(ORB_DBG_SBALL, ("SBallParseError(): hardflt %d checksum %d brownout %d\n", hardflt, checksum, brownout));
-	// Call appropriate function
-	OrbParseCallFunc(orbData);
+  pch = orbData->packetBuffer;
+  // Print error info
+  DbgOut( ORB_DBG_SBALL, ("SBallParseError(): \nE1: %d\nE2: %d\nE3: %d\nE4: %d\nE5: %d\nE6: %d\nE7: %d\nE8: %d\nE9: %d\nE10: %d",
+			  SELECT_BIT( pch[ 1 ], 6 ),
+			  SELECT_BIT( pch[ 1 ], 7 ),
+			  SELECT_BIT( pch[ 2 ], 2 ),
+			  SELECT_BIT( pch[ 2 ], 3 ),
+			  SELECT_BIT( pch[ 2 ], 4 ),
+			  SELECT_BIT( pch[ 2 ], 5 ),
+			  0, //no E7 register!?
+			  SELECT_BIT( pch[ 1 ], 0 ),
+			  SELECT_BIT( pch[ 1 ], 1 ),
+			  SELECT_BIT( pch[ 1 ], 2 ),
+			  ));
+  
+  // Call appropriate function
+  OrbParseCallFunc(orbData);
 }
 
 // Parse null region packet
 VOID
 SBallParseNullRegion(IN PORB_DATA orbData)
-{       
-        DbgOut( ORB_DBG_SBALL, ("Parsing null region packet" ));
-	// Call callback function
-	OrbParseCallFunc(orbData);
+{ 
+  PUCHAR pch;
+
+  pch = orbData->packetBuffer;
+      
+  DbgOut( ORB_DBG_SBALL, ("SBallParseNullRegionPacket"));
+  // Call callback function
+  OrbParseCallFunc(orbData);
 }
 
 // Parse terminator packet
@@ -315,6 +391,6 @@ VOID
 SBallParseTerm(IN PORB_DATA orbData)
 {
   DbgOut( ORB_DBG_SBALL, ("Parsing Term packet")  );
-	// Call callback function
-	OrbParseCallFunc(orbData);
+  // Call callback function
+  OrbParseCallFunc(orbData);
 }
