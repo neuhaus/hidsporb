@@ -67,7 +67,7 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
   //	lineControl.StopBits = STOP_BIT_1;
   lineControl.WordLength = 8;
   lineControl.Parity = 0;
-  lineControl.StopBits = 1;
+  lineControl.StopBits = 0;
   // Set word size, stop bits and parity stuff
   status = OrbSerSetLineControl(devObj, &lineControl);
   if (!NT_SUCCESS(status)) 
@@ -154,9 +154,11 @@ OrbPowerDown(IN PDEVICE_OBJECT devObj)
 }
 
 VOID
-OrbReadSomething(IN PDEVICE_OBJECT devObj)
+OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
 {
-  CHAR buffer[256], c;
+  //  CHAR buffer[256], c; changed vputz 20020506 so that buffer can be
+  //  passed in as argument
+  CHAR c;
   ULONG nRead, i;
   NTSTATUS status;
   SERIAL_TIMEOUTS timeouts;

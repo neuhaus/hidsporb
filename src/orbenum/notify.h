@@ -29,3 +29,19 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx);
 VOID
 OrbNotifyRemoval(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx);
 
+VOID
+OrbNotifyCheck( IN PDEVICE_OBJECT devObj );
+
+BOOLEAN
+OrbBufferContainsOrbStartupString( IN PCHAR buffer,
+				   IN SIZE_T buffer_size );
+
+BOOLEAN
+OrbBufferContainsBallStartupString( IN PCHAR buffer,
+				   IN SIZE_T buffer_size );
+
+BOOLEAN
+OrbBlockContains( IN CONST PVOID p1,
+		  IN SIZE_T p1_size,
+		  IN CONST PVOID p2,
+		  IN SIZE_T p2_size );

@@ -107,7 +107,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   // so make sure we deregister this stuff before (!!!) unloading
   status = IoRegisterPlugPlayNotification(EventCategoryDeviceInterfaceChange,
 					  PNPNOTIFY_DEVICE_INTERFACE_INCLUDE_EXISTING_INTERFACES,
-					  (LPGUID) &GUID_SERENUM_BUS_ENUMERATOR,
+					  (LPGUID) &GUID_CLASS_COMPORT, //SERENUM_BUS_ENUMERATOR,
 					  devExt->DriverObject,
 					  OrbPnpNotifyCallback,
 					  devExt,

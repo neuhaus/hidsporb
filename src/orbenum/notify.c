@@ -234,7 +234,7 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
 {
   NTSTATUS status;
   ULONG len;
-  PCHAR buffer;
+  CHAR buffer[256];
 
   DbgOut(("OrbNotifyCheck(): enter\n"));
 #if 0
@@ -255,10 +255,72 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
       OrbPowerDown(devObj);
       goto failed;
     }
-  OrbReadSomething(devObj);
+  OrbReadSomething(devObj, buffer);
+  //now look in "buffer" and see if we find our strings
+  if ( OrbBufferContainsOrbStartupString( buffer , 256 ) )
+    {
+      DbgOut(( "OrbNotifyCheck(): ****DETECTED SPACEORB****" ));
+    }
+  if ( OrbBufferContainsBallStartupString( buffer, 256 ) )
+    {
+      DbgOut(( "OrbNotifyCheck(): ****DETECTED SPACEBALL****" ));
+    }
   OrbPowerDown(devObj);
  failed:
   DbgOut(("OrbNotifyCheck(): exit\n"));
+}
+
+//VERY simplistic "find a string in a string" function; if the 
+//string of bytes p2 exists in p1 returns TRUE, otherwise
+//returns FALSE
+BOOLEAN
+OrbBlockContains( IN CONST PVOID p1, 
+		  IN SIZE_T p1_size,
+		  IN CONST PVOID p2,
+		  IN SIZE_T p2_size )
+{
+  int search_counter = 0;
+  SIZE_T search_length = p1_size - p2_size;
+  SIZE_T compare_result;
+  BOOLEAN Result = FALSE;
+
+  for ( search_counter = 0; 
+	( search_counter < search_length )
+	  && ( Result == FALSE );
+	++search_counter )
+    {
+      compare_result = RtlCompareMemory( (PVOID)( (PCHAR)p1 + search_counter ),
+					 p2,
+					 p2_size );
+      if ( compare_result == p2_size )
+	{
+	  Result = TRUE;
+	}
+    }
+  return Result;
+}
+
+//simple search to see if the given buffer contains the SpaceOrb startup string
+BOOLEAN
+OrbBufferContainsOrbStartupString( IN PCHAR buffer,
+				   IN SIZE_T buffer_size )
+{
+  CHAR search_string[] = "R Spaceball (R)";
+  SIZE_T search_string_length = 15;
+  return OrbBlockContains( buffer, buffer_size, 
+			   (PVOID)(search_string), search_string_length );
+}
+
+//simple search to see if the given buffer contains the SpaceBall 
+//startup string
+BOOLEAN 
+OrbBufferContainsBallStartupString( IN PCHAR buffer,
+				   IN SIZE_T buffer_size )
+{
+  CHAR search_string[] = "@1 Spaceball alive and well";
+  SIZE_T search_string_length = 27;
+  return OrbBlockContains( buffer, buffer_size,
+			   (PVOID)(search_string), search_string_length );
 }
 
 // This function is called from a worker thread context
@@ -475,4 +537,3 @@ XXX
 }
 
 #endif
-}

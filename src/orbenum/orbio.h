@@ -12,4 +12,4 @@ NTSTATUS
 OrbPowerDown(IN PDEVICE_OBJECT devObj);
 
 VOID
-OrbReadSomething(IN PDEVICE_OBJECT devObj);
+OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer);
