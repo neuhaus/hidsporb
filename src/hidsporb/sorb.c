@@ -19,7 +19,9 @@ USHORT OrbPacketLen[] = {
 	5,	// Button data
 	4,	// Error
 	3,	// Null region
-	1	// Term
+	1,	// Term
+	52,	// '!1' Query response packet
+	21	// '!2' Query response packet
 };
 
 // Forward declaration of several functions internal to this 
@@ -48,6 +50,9 @@ SOrbParseNullRegion(IN PORB_DATA orbData);
 
 VOID
 SOrbParseTerm(IN PORB_DATA orbData);
+
+VOID
+SOrbParseQuery( IN PORB_DATA orbData );
 
 
 
@@ -117,27 +122,35 @@ SOrbParseChar(IN PORB_DATA orbData, IN UCHAR c)
 		OrbClearBuffer(orbData, ORB_UNKNOWN_PACKET);
 	}
 	DbgOut( ORB_DBG_SORB, ( "Parsing 0x%x", c ));
-	// Initialize packet type according to current char
-	switch (c) {
-	case 'R':
-		OrbClearBuffer(orbData, ORB_RESET_PACKET);
-		break;
-	case 'D':
-		OrbClearBuffer(orbData, ORB_BALL_DATA_PACKET);
-		break;
-	case 'K':
-		OrbClearBuffer(orbData, ORB_BUTTON_DATA_PACKET);
-		break;
-	case 'E':
-		OrbClearBuffer(orbData, ORB_ERROR_PACKET);
-		break;
-	case 'N':
-		OrbClearBuffer(orbData, ORB_NULL_REGION_PACKET);
-		break;
-	case '\0x0d':
-		OrbClearBuffer(orbData, ORB_TERM_PACKET);
-		break;
-	}
+	//yuri's change--only try to switch the packet type if
+	//we're currently in an unknown packet
+	if ( orbData->currPacketType == ORB_UNKNOWN_PACKET ) 
+	  {
+	    // Initialize packet type according to current char
+	    switch (c) {
+	    case 'R':
+	      OrbClearBuffer(orbData, ORB_RESET_PACKET);
+	      break;
+	    case 'D':
+	      OrbClearBuffer(orbData, ORB_BALL_DATA_PACKET);
+	      break;
+	    case 'K':
+	      OrbClearBuffer(orbData, ORB_BUTTON_DATA_PACKET);
+	      break;
+	    case 'E':
+	      OrbClearBuffer(orbData, ORB_ERROR_PACKET);
+	      break;
+	    case 'N':
+	      OrbClearBuffer(orbData, ORB_NULL_REGION_PACKET);
+	      break;
+	    case '!':
+	      OrbClearBuffer(orbData, ORB_QUERY_PACKET_1);
+	      break;
+	    case '\0x0d':
+	      OrbClearBuffer(orbData, ORB_TERM_PACKET);
+	      break;
+	    }
+	  }
 	// We don't care about unknown packets
 	if (orbData->currPacketType == ORB_UNKNOWN_PACKET) {
 		return;
@@ -145,11 +158,19 @@ SOrbParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	// Store character in buffer
 	orbData->packetBuffer[orbData->bufferCursor] = c;
 	orbData->bufferCursor++;
+	//check and see if it's a query 2 response packet
+	if ( (orbData->currPacketType == ORB_QUERY_PACKET_1) &&
+	     (orbData->bufferCursor == 1) && 
+	     (c == '2') ) 
+	  {
+	    orbData->currPacketType = ORB_QUERY_PACKET_2;
+	  }
 	// See if packet is complete
-	if (orbData->bufferCursor == OrbPacketLen[orbData->currPacketType]) {
-		// Parse packet
-		SOrbParsePacket(orbData);
-	}
+	if (orbData->bufferCursor == OrbPacketLen[orbData->currPacketType]) 
+	  {
+	    // Parse packet
+	    SOrbParsePacket(orbData);
+	  }
 }
 
 // Uncrypt packet contents
@@ -175,7 +196,9 @@ static VOID (*SOrbFuncs[])(IN PORB_DATA orbData) = {
 	SOrbParseButtonData,
 	SOrbParseError,
 	SOrbParseNullRegion,
-	SOrbParseTerm
+	SOrbParseTerm,
+	SOrbParseQuery,
+	SOrbParseQuery
 };
 
 PCHAR pktStr[] = {
@@ -185,7 +208,9 @@ PCHAR pktStr[] = {
 	"buttondata",
 	"error",
 	"nullregion",
-	"term"
+	"term",
+	"query1",
+	"query2"
 };
 
 // Parse packet
@@ -309,4 +334,10 @@ SOrbParseTerm(IN PORB_DATA orbData)
   DbgOut( ORB_DBG_SORB, ("Parsing Term packet")  );
 	// Call callback function
 	OrbParseCallFunc(orbData);
+}
+
+VOID
+SOrbParseQuery( IN PORB_DATA orbData )
+{
+  OrbParseCallFunc( orbData );
 }

@@ -12,5 +12,7 @@
 #define	ORB_ERROR_PACKET	4
 #define	ORB_NULL_REGION_PACKET	5
 #define	ORB_TERM_PACKET		6
+#define ORB_QUERY_PACKET_1      7
+#define ORB_QUERY_PACKET_2      8
 
 #endif
