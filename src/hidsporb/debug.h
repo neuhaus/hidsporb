@@ -1,18 +1,11 @@
 #ifndef DEBUG_H
+#define DEBUG_H
 
-//
-// debug.h
-//
-
-// debug functions
-
-// global debug level, defined in debug.c
-extern ULONG OrbDebugLevel;
+#ifndef DEBUG_BASE_H
+#include "debug_base.h"
+#endif
 
 #if DBG
-PCHAR
-PnpToString(UCHAR MinorFunction);
-
 // PNP debugging
 #define	ORB_DBG_PNP	(1 << 0)
 // Serial I/O debugging
@@ -42,10 +35,6 @@ PnpToString(UCHAR MinorFunction);
 //
 #define	ORB_DBG_ALL	(ULONG) (~0L)
 
-#define	DbgOut(level, _x_)	\
-		if (OrbDebugLevel & level) { \
-			DbgPrint _x_; \
-		}
 #define DbgPrintAxes( level, p_orb_data ) \
   DbgOut( level, ( "Orb Axes: tx: %d; ty: %d; tz: %d; rx: %d; ry: %d; rz: %d", \
 		   p_orb_data->Axes[ 0 ], \
@@ -71,7 +60,6 @@ PnpToString(UCHAR MinorFunction);
 
 
 #else
-#define	DbgOut(level, _x_)
 #define DbgPrintAxes( level, p_orb_data )
 #define DbgPrintButtons( level, p_orb_data )
 #endif

@@ -19,7 +19,7 @@ OrbPdoCallComplete(IN PDEVICE_OBJECT fdo, IN PIRP fdoIrp, PVOID nothing)
   ObDereferenceObject(fdo);
   irpSp = IoGetCurrentIrpStackLocation(fdoIrp);
   Irp = (PIRP) irpSp->Parameters.Others.Argument1;
-  DbgOut(("OrbPdoCallComplete(): status %x\n", fdoIrp->IoStatus.Status));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoCallComplete(): status %x\n", fdoIrp->IoStatus.Status));
   Irp->IoStatus.Status = fdoIrp->IoStatus.Status;
   Irp->IoStatus.Information = fdoIrp->IoStatus.Information;
   IoFreeIrp(fdoIrp);
@@ -36,7 +36,7 @@ OrbPdoCallFdo(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PIO_STACK_LOCATION irpSp, fdoSp;
   PIRP fdoIrp;
 
-  DbgOut(("OrbPdoCallFdo(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoCallFdo(): enter\n"));
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   fdo = pdevExt->fdo;
@@ -44,7 +44,7 @@ OrbPdoCallFdo(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   fdoIrp = IoAllocateIrp(fdo->StackSize + 1, FALSE);
   if (fdoIrp == NULL) 
     {
-      DbgOut(("OrbPdoCallFdo(): no IRP\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoCallFdo(): no IRP\n"));
 
       ObDereferenceObject(fdo);
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, Irp->IoStatus.Information);
@@ -61,7 +61,7 @@ OrbPdoCallFdo(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   fdoIrp->IoStatus.Status = STATUS_NOT_SUPPORTED;
   IoMarkIrpPending(Irp);
   IoCallDriver(fdo, fdoIrp);
-  DbgOut(("OrbPdoCallFdo(): exit"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoCallFdo(): exit"));
 
   return STATUS_PENDING;
 }
@@ -79,12 +79,12 @@ OrbPdoPnp(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   pdevExt = (PDEVICE_EXTENSION) pdo->DeviceExtension;
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   func = irpSp->MinorFunction;
-  DbgOut(("OrbPdoPnp(): enter %s\n", PnpToString(func)));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoPnp(): enter %s\n", PnpToString(func)));
   status = IoAcquireRemoveLock(&pdevExt->RemoveLock, Irp);
   // Fail if we don't get remove lock
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbPdoPnp(): remove lock failed %x\n", status));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoPnp(): remove lock failed %x\n", status));
       return CompleteIrp(Irp, status, 0);
     }
   switch (func) 
@@ -141,7 +141,7 @@ OrbPdoPnp(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
     {
       IoReleaseRemoveLock(&pdevExt->RemoveLock, Irp);
     }
-  DbgOut(("OrbPdoPnp(): exit %s, status %x\n", PnpToString(func), status));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoPnp(): exit %s, status %x\n", PnpToString(func), status));
 
   return status;
 }
@@ -154,7 +154,7 @@ OrbPdoStart(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PPDO_EXTENSION pdevExt;
   NTSTATUS status;
 
-  DbgOut(("OrbPdoStart(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoStart(): enter\n"));
   // status = CallNextDriverWait(pdo, Irp);
   status = STATUS_SUCCESS;
   if (NT_SUCCESS(status) && NT_SUCCESS(Irp->IoStatus.Status)) 
@@ -175,7 +175,7 @@ OrbPdoStart(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   // We must now complete the IRP, since we stopped it in the
   // completion routine with STATUS_MORE_PROCESSING_REQUIRED.
   //
-  DbgOut(("OrbPdoStart(): exit %x\n", status));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoStart(): exit %x\n", status));
 
   return CompleteIrp(Irp, status, 0);
 }
@@ -188,7 +188,7 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   NTSTATUS status;
   PIRP Irp1;
 
-  DbgOut(("OrbPdoRemove(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): enter\n"));
   // Get PDO dev ext
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   // Get root FDO dev ext
@@ -196,7 +196,7 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   // Lock PDO array
   OrbLockPdos(devExt);
   // Remove PDO from array
-  DbgOut(("OrbPdoRemove(): numdevice %d\n", pdevExt->numDevice));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): numdevice %d\n", pdevExt->numDevice));
   devExt->devArray[pdevExt->numDevice] = NULL;
   devExt->numDevices--;
   OrbUnlockPdos(devExt);
@@ -215,7 +215,7 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   // Send IRP_MJ_CLOSE to serial driver
   if (Irp1 == NULL) 
     {
-      DbgOut(("OrbPdoRemove(): no IRP??? bad!\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): no IRP??? bad!\n"));
     }
   if (Irp1) 
     {
@@ -223,13 +223,13 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
       irpSp = IoGetNextIrpStackLocation(Irp1);
       irpSp->MajorFunction = IRP_MJ_CLOSE;
       status = CallNextDriverWait(pdevExt->nextDevObj, Irp1);
-      DbgOut(("OrbPdoRemove(): sent CLOSE, status %x\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): sent CLOSE, status %x\n"));
       // Send IRP_MJ_CLEANUP request
       IoSetNextIrpStackLocation(Irp1);
       irpSp = IoGetNextIrpStackLocation(Irp1);
       irpSp->MajorFunction = IRP_MJ_CLEANUP;
       status = CallNextDriverWait(pdevExt->nextDevObj, Irp1);
-      DbgOut(("OrbPdoRemove(): sent CLEANUP, status %x\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): sent CLEANUP, status %x\n"));
       IoFreeIrp(Irp1);
     }
 #endif
@@ -241,7 +241,7 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   // Don't forget to free linkName buffer!!!
   ExFreePool(pdevExt->linkName);
   IoDeleteDevice(pdo);
-  DbgOut(("OrbPdoRemove(): exit %x\n", status));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoRemove(): exit %x\n", status));
 
   return status;
 }
@@ -260,11 +260,11 @@ OrbPdoQueryRelations(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   devExt = (PDEVICE_EXTENSION) pdo->DeviceExtension;
-  DbgOut(("OrbPdoQueryRelations(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryRelations(): enter\n"));
   if (irpSp->Parameters.QueryDeviceRelations.Type != TargetDeviceRelation) 
     {
       // Simply complete request
-      DbgOut(("OrbPdoQueryRelations(): not TargDevRel, completing\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoQueryRelations(): not TargDevRel, completing\n"));
       return CompleteIrp(Irp, Irp->IoStatus.Status, Irp->IoStatus.Information);
     }
   oldrel = (PDEVICE_RELATIONS) Irp->IoStatus.Information;
@@ -279,7 +279,7 @@ OrbPdoQueryRelations(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
       if (oldrel)
 	ExFreePool(oldrel);
     }
-  DbgOut(("OrbPdoQueryRelations(): exit\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryRelations(): exit\n"));
 
   return CompleteIrp(Irp, status, (ULONG_PTR) rel);
 }
@@ -297,11 +297,11 @@ OrbPdoQueryId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   ULONG len;
   ULONG size;
 
-  DbgOut(("OrbPdoQueryId(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryId(): enter\n"));
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   idType = irpSp->Parameters.QueryId.IdType;
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
-  DbgOut(("OrbPdoQueryId(): query %d\n", idType));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryId(): query %d\n", idType));
 
   switch (idType) 
     {
@@ -320,7 +320,7 @@ OrbPdoQueryId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
       goto ex;
     }
  ex:
-  DbgOut(("OrbPdoQueryId(): exit %x\n", status));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryId(): exit %x\n", status));
 
   return status;
 }
@@ -334,7 +334,7 @@ OrbPdoQueryInstanceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PWCHAR id;
   ULONG len, size;
 
-  DbgOut(("OrbPdoQueryId(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryId(): enter\n"));
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   len = 4;
@@ -342,13 +342,13 @@ OrbPdoQueryInstanceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   id = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (id == NULL) 
     {
-      DbgOut(("OrbPdoQueInstId(): no memory\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoQueInstId(): no memory\n"));
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
   swprintf(id, L"%02d", pdevExt->numDevice);
   id[len+1] = 0;
-  DbgOut(("OrbPdoQueryId(): exit\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryId(): exit\n"));
 
   return CompleteIrp(Irp, STATUS_SUCCESS, (ULONG_PTR) id);
 }
@@ -362,7 +362,7 @@ OrbPdoQueryDeviceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PWCHAR id;
   ULONG len, size;
 
-  DbgOut(("OrbPdoQueryDevId(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryDevId(): enter\n"));
   // Get PDO dev ext
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   // Get current IRP stack location
@@ -373,14 +373,14 @@ OrbPdoQueryDeviceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   id = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (id == NULL) 
     {
-      DbgOut(("OrbPdoQueDevId(): no memory\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoQueDevId(): no memory\n"));
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
   //wcscpy(id, L"ORBENUM\\*FOOBAR");
   wcscpy(id, pdevExt->deviceId);
   id[len+1] = 0;
-  DbgOut(("OrbPdoQueryDevId(): exit\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryDevId(): exit\n"));
 
   return CompleteIrp(Irp, STATUS_SUCCESS, (ULONG_PTR) id);
 }
@@ -394,7 +394,7 @@ OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PWCHAR id;
   ULONG len, size;
 
-  DbgOut(("OrbPdoQueryHardId(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryHardId(): enter\n"));
   // Get PDO dev ext
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   // Get current IRP stack location
@@ -405,7 +405,7 @@ OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   id = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (id == NULL) 
     {
-      DbgOut(("OrbPdoQueHardId(): no memory\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoQueHardId(): no memory\n"));
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
@@ -413,7 +413,7 @@ OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   wcscpy(id, pdevExt->hardwareId);
   // Add null terminator
   id[len+1] = 0;
-  DbgOut(("OrbPdoQueryHardId(): exit\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryHardId(): exit\n"));
 
   return CompleteIrp(Irp, STATUS_SUCCESS, (ULONG_PTR) id);
 }
@@ -427,7 +427,7 @@ OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PWCHAR text;
   ULONG len, size;
 
-  DbgOut(("OrbPdoQueryDeviceText(): enter\n"));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryDeviceText(): enter\n"));
   // Get PDO dev ext
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   // Get current IRP stack location
@@ -450,13 +450,13 @@ OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   text = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (text == NULL) 
     {
-      DbgOut(("OrbPdoQueryDeviceText(): no memory\n"));
+      DbgOut( ORB_DBG_PDO, ("OrbPdoQueryDeviceText(): no memory\n"));
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
   //swprintf(text, L"%ws", DUMMY_MODEL);
   swprintf(text, L"%ws", pdevExt->model);
-  DbgOut(("OrbPdoQueryDeviceText(): exit, text %ws\n", text));
+  DbgOut( ORB_DBG_PDO, ("OrbPdoQueryDeviceText(): exit, text %ws\n", text));
 
  complete:
   return CompleteIrp(Irp, STATUS_SUCCESS, (ULONG_PTR) text);

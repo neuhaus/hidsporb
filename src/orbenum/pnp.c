@@ -23,7 +23,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
 
   PAGED_CODE();
 
-  DbgOut(("OrbEnumAddDevice(): enter\n"));
+  DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice(): enter\n"));
   // Initialize device name
   RtlInitUnicodeString(&ntDeviceName, ORBENUM_DEVICE_NAME);
 
@@ -47,7 +47,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
       // deviceobject with the same name exits. This could happen
       // if you install another instance of this device.
       //
-      DbgOut(("OrbEnumAddDevice(): IoCreateDevice() failed %x\n", status));
+      DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice(): IoCreateDevice() failed %x\n", status));
       return status;
     }
 
@@ -61,7 +61,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   //  abort installation.
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbEnumAddDevice(): IoCreateSymLink() failed %x\n", status));
+      DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice(): IoCreateSymLink() failed %x\n", status));
       IoDeleteDevice(devObj);
       return status;
     }
@@ -116,7 +116,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   // Fail if unsuccessful
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbPnpNotifyReg(): failed %x\n", status));
+      DbgOut( ORB_DBG_PNP, ("OrbPnpNotifyReg(): failed %x\n", status));
       // Delete symlink
       IoDeleteSymbolicLink(&win32DeviceName);
       // Detach from BUS
@@ -129,10 +129,10 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
 
   // OK, we're ready to go!
   devObj->Flags &= ~DO_DEVICE_INITIALIZING;
-  DbgOut(("OrbEnumAddDevice: %p to %p->%p \n", devObj, 
+  DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice: %p to %p->%p \n", devObj, 
 	  devExt->nextDevObj,
 	  pdo));
-  DbgOut(("OrbEnumAddDevice(): exit\n"));
+  DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice(): exit\n"));
 
   return STATUS_SUCCESS;
 }

@@ -27,7 +27,7 @@ OrbDetect(IN PDEVICE_OBJECT fdo, IN PDEVICE_OBJECT pdo)
   PIO_STACK_LOCATION irpSp;
   NTSTATUS status;
 
-  DbgOut(("OrbDetect(): enter\n"));
+  DbgOut( ORB_DBG_DETECT, ("OrbDetect(): enter\n"));
   // Note:
   // we could use IoGetDeviceProperty()
   // to get PNP IDs
@@ -35,7 +35,7 @@ OrbDetect(IN PDEVICE_OBJECT fdo, IN PDEVICE_OBJECT pdo)
   Irp = IoAllocateIrp(fdo->StackSize, FALSE);
   if (Irp == NULL) 
     {
-      DbgOut(("OrbDetect(): cant alloc IRP\n"));
+      DbgOut( ORB_DBG_DETECT, ("OrbDetect(): cant alloc IRP\n"));
       status = STATUS_INSUFFICIENT_RESOURCES;
       goto failed;
     }
@@ -47,14 +47,14 @@ OrbDetect(IN PDEVICE_OBJECT fdo, IN PDEVICE_OBJECT pdo)
   irpSp->Parameters.QueryId.IdType = BusQueryHardwareIDs;
   // Set up completion routine
   status = CallNextDriverWait(fdo, Irp);
-  DbgOut(("OrbDetect(): returned status %x\n", status));
+  DbgOut( ORB_DBG_DETECT, ("OrbDetect(): returned status %x\n", status));
   if (NT_SUCCESS(status)) 
     {
       ExFreePool((PVOID) Irp->IoStatus.Information);
     }
   IoFreeIrp(Irp);
  failed:
-  DbgOut(("OrbDetect(): exit %x\n", status));
+  DbgOut( ORB_DBG_DETECT, ("OrbDetect(): exit %x\n", status));
 
   return status;
 }

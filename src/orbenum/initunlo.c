@@ -19,7 +19,7 @@ DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath)
 
   UNREFERENCED_PARAMETER (RegistryPath);
 
-  DbgOut(("OrbEnumDriverEntry()\n"));
+  DbgOut( ORB_DBG_INITUNLO, ("OrbEnumDriverEntry()\n"));
 
   //
   // Create dispatch points for the IRPs.
@@ -49,7 +49,7 @@ OrbEnumUnload(IN PDRIVER_OBJECT DriverObject)
   //
   ASSERT(DriverObject->DeviceObject == NULL);
 
-  DbgOut(("OrbEnumUnload()\n"));
+  DbgOut( ORB_DBG_INITUNLO, ("OrbEnumUnload()\n"));
 
   return;
 }

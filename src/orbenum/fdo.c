@@ -21,14 +21,14 @@ OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   func = irpSp->MinorFunction;
-  DbgOut(("OrbFdoPnp(): enter %s\n", PnpToString(func)));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoPnp(): enter %s\n", PnpToString(func)));
   // Try to acquire remove lock
   // it will fail if device is being removed
   status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
   // Fail if we don't get remove lock
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbFdoPnp(): remove lock failed %x\n", status));
+      DbgOut( ORB_DBG_FDO, ("OrbFdoPnp(): remove lock failed %x\n", status));
 
       return CompleteIrp(Irp, status, 0);
     }
@@ -74,7 +74,7 @@ OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
     {
       IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
     }
-  DbgOut(("OrbFdoPnp(): exit %s, status %x\n", PnpToString(func), status));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoPnp(): exit %s, status %x\n", PnpToString(func), status));
 
   return status;
 }
@@ -89,7 +89,7 @@ OrbFdoStart(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   KEVENT event;
   NTSTATUS status;
 
-  DbgOut(("OrbFdoStart(): enter\n"));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoStart(): enter\n"));
   devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   // Call root bus driver
   Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -111,7 +111,7 @@ OrbFdoStart(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   // We must now complete the IRP, since we stopped it in the
   // completion routine with STATUS_MORE_PROCESSING_REQUIRED.
   //
-  DbgOut(("OrbFdoStart(): exit %x\n", status));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoStart(): exit %x\n", status));
 
   return CompleteIrp(Irp, status, 0);
 }
@@ -125,7 +125,7 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   PDEVICE_EXTENSION devExt;
   NTSTATUS status;
 
-  DbgOut(("OrbFdoRemove(): enter\n"));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): enter\n"));
   devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   // Wait for pending I/O to complete
   IoReleaseRemoveLockAndWait(&devExt->RemoveLock, Irp);
@@ -138,10 +138,10 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   // PNP deletes PDOs first
   // Lock
   OrbLockPdos(devExt);
-  DbgOut(("OrbFdoRemove(): deleting %d PDOs\n", devExt->numDevices));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDOs\n", devExt->numDevices));
   for (i = 0; i < devExt->numDevices; i++) 
     {
-      DbgOut(("OrbFdoRemove(): deleting %d PDO %p\n", i, devExt->devArray[0]));
+      DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDO %p\n", i, devExt->devArray[0]));
       IoDeleteDevice(devExt->devArray[i]);
     }
   // Unregister notification callback
@@ -154,7 +154,7 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   // Detach and delete device object
   IoDetachDevice(devExt->nextDevObj);
   IoDeleteDevice(fdo);
-  DbgOut(("OrbFdoRemove(): exit %x\n", status));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): exit %x\n", status));
 
   return status;
 }
@@ -173,11 +173,11 @@ OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
 
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
-  DbgOut(("OrbFdoQueryRelations(): enter, old rel %p\n", Irp->IoStatus.Information));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): enter, old rel %p\n", Irp->IoStatus.Information));
   if (irpSp->Parameters.QueryDeviceRelations.Type != BusRelations) 
     {
       // Simply pass request to root bus device
-      DbgOut(("OrbFdoQueryRelations(): not BusRelations\n"));
+      DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): not BusRelations\n"));
       return CallNextDriver(devExt->nextDevObj, Irp);
       //status = STATUS_SUCCESS;
       goto failed;
@@ -220,7 +220,7 @@ OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
     }
 #endif
   count = devExt->numDevices;
-  DbgOut(("OrbFdoQueryRelations(): count %d\n", count));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): count %d\n", count));
   if (count > 1)
     size += ((count - 1) * sizeof(PDEVICE_OBJECT));
   rel = ExAllocatePoolWithTag(PagedPool, size, 'rBRO');
@@ -242,7 +242,7 @@ OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
 	  ObReferenceObject(rel->Objects[i]);
 	}
     }
-  DbgOut(("OrbFdoQueryRelations(): new rel %p\n", rel));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): new rel %p\n", rel));
   // Unlock FDO
   OrbUnlockPdos(devExt);
   // I'm not sure if we should call lower PDO (provided by root enum???)
@@ -252,7 +252,7 @@ OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
  failed:
   Irp->IoStatus.Status = status;
 
-  DbgOut(("OrbFdoQueryRelations(): status %x\n", status));
+  DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): status %x\n", status));
   //return CompleteIrp(Irp, status, Irp->IoStatus.Information);
   return CallNextDriver(devExt->nextDevObj, Irp);
 }

@@ -15,11 +15,11 @@ OrbEnumDispatchSystemControl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
   PAGED_CODE();
 
   devExt = (PDEVICE_EXTENSION) devObj->DeviceExtension;
-  DbgOut(("OrbDispatchSysControl(): enter"));
+  DbgOut( ORB_DBG_WMI, ("OrbDispatchSysControl(): enter"));
   IoSkipCurrentIrpStackLocation(Irp);
   // Call root bus driver
   status = IoCallDriver(devExt->nextDevObj, Irp);
-  DbgOut(("OrbDispatchSysControl(): exit, status %x\n", status));
+  DbgOut( ORB_DBG_WMI, ("OrbDispatchSysControl(): exit, status %x\n", status));
 
   return status;
 }

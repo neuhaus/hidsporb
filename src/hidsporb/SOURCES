@@ -16,6 +16,7 @@ ioctl.c \
 dispatch.c \
 ..\misc.c \
 ..\serial.c \
+..\debug_base.c \
 orbio.c \
 io.c \
 detect.c \

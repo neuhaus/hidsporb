@@ -23,5 +23,6 @@ orbio.c \
 debug.c \
 ..\serial.c \
 ..\misc.c \
+..\debug_base.c \
 orbenum.rc 
 

@@ -47,24 +47,24 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
   USHORT len, arrival;
   PWCHAR linkName;
 
-  DbgOut(("OrbNotifyCallback(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): enter\n"));
   //	if (!IsEqualGUID(&(pnp->InterfaceClassGuid),
   //			(LPGUID) &GUID_CLASS_COMPORT)) 
   {
     //		return status;
     //	}
-    DbgOut(("OrbNotifyCallback(): symlink %ws\n", pnp->SymbolicLinkName->Buffer));
+    DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): symlink %ws\n", pnp->SymbolicLinkName->Buffer));
     arrival = 0xc001;
     len = sizeof(pnp->Event);
     // Find out what kind of event it is
     if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_ARRIVAL, len) == len) 
       {
-	DbgOut(("OrbNotifyCallback(): arrival\n"));
+	DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): arrival\n"));
 	arrival = 1;
       } else
 	if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_REMOVAL, len) == len) 
 	  {
-	    DbgOut(("OrbNotifyCallback(): removal\n"));
+	    DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): removal\n"));
 	    arrival = 0;
 	  }
     // Allocate buffer for link name
@@ -72,7 +72,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     linkName = ExAllocatePoolWithTag(PagedPool, (len + 2) * sizeof(WCHAR), 'SbrO');
     if (linkName == NULL) 
       {
-	DbgOut(("OrbNotifyCallback(): failed to alloc linkName buffer\n"));
+	DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): failed to alloc linkName buffer\n"));
 	goto failed;
       }
     // Copy name into our buffer
@@ -81,7 +81,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     linkName[len+1] = 0;
     // Allocate work item
     work = IoAllocateWorkItem(devExt->devObj);
-    DbgOut(("OrbNotifyCallback(): allocated workitem %p", work));
+    DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): allocated workitem %p", work));
     if (work == NULL) 
       {
 	ExFreePool(linkName);
@@ -90,7 +90,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     ctx = ExAllocatePoolWithTag(PagedPool, sizeof(*ctx), 'CbrO');
     if (ctx == NULL) 
       {
-	DbgOut(("OrbNotify(): failed to alloc context\n"));
+	DbgOut( ORB_DBG_NOTIFY, ("OrbNotify(): failed to alloc context\n"));
 	ExFreePool(linkName);
 	IoFreeWorkItem(work);
 	goto failed;
@@ -103,7 +103,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     // Queue work item
     IoQueueWorkItem(work, OrbWorkRoutine, DelayedWorkQueue, ctx);
   failed:
-    DbgOut(("OrbNotifyCallback(): exit\n"));
+    DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): exit\n"));
 
     return status;
   }
@@ -112,7 +112,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
 VOID
 OrbWorkRoutine(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
 {
-  DbgOut(("OrbWorkRoutine(): enter, device %ws\n", ctx->linkName));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): enter, device %ws\n", ctx->linkName));
   // Well, device object isn't going to go away, IoAllocWorkItem
   // makes sure this won't happen
   // NOTE! IoFreeWorkItem dereferences FDO object
@@ -120,22 +120,22 @@ OrbWorkRoutine(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   // or in PDOs IRP_MN_START_DEVICE (i think not there!)
   if (ctx->flags == 1) 
     {
-      DbgOut(("OrbWorkRoutine(): arrival\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): arrival\n"));
       // Note: notifyarrival frees ctx->linkName if needed
       OrbNotifyArrival(fdo, ctx);
     } else
       if (ctx->flags == 0) 
 	{
-	  DbgOut(("OrbWorkRoutine(): removal\n"));
+	  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): removal\n"));
 	  OrbNotifyRemoval(fdo, ctx);
           // Free linkName buffer and context structure
           ExFreePool(ctx->linkName);
 	} else {
-	  DbgOut(("OrbWorkRoutine(): not arrival, nor removal?\n"));
+	  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): not arrival, nor removal?\n"));
 	}
   IoFreeWorkItem(ctx->item);
   ExFreePool(ctx);
-  DbgOut(("OrbWorkRoutine(): exit\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): exit\n"));
 }
 
 NTSTATUS
@@ -146,7 +146,7 @@ OrbGetDeviceProperty(IN PDEVICE_OBJECT devObj,
   PVOID buffer;
   ULONG length;
 
-  DbgOut(("OrbGetDeviceProperty(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): enter\n"));
   // Check if we have correct parameters
   if ((pBuffer == NULL) || (pLength == NULL)) 
     {
@@ -156,32 +156,32 @@ OrbGetDeviceProperty(IN PDEVICE_OBJECT devObj,
   *pLength = 0;
   // Make first call to determine needed buffer size
   status = IoGetDeviceProperty(devObj, devProperty, 0, buffer, &length);
-  DbgOut(("OrbGetDeviceProperty(): needed buffer %d, status %x\n", length, status));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): needed buffer %d, status %x\n", length, status));
   // If something is wrong, exit
   if (status != STATUS_BUFFER_TOO_SMALL) 
     {
-      DbgOut(("OrbGetDeviceProperty(): call failed %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): call failed %x\n", status));
       goto failed;
     }
   // Allocate buffer
   buffer = ExAllocatePoolWithTag(PagedPool, length, 'BbrO');
   if (buffer == NULL) 
     {
-      DbgOut(("OrbGetDeviceProperty(): cant alloc buffer\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): cant alloc buffer\n"));
       status = STATUS_INSUFFICIENT_RESOURCES;
       goto failed;
     }
   status = IoGetDeviceProperty(devObj, devProperty, length, buffer, &length);
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbGetDeviceProperty(): call1 failed %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): call1 failed %x\n", status));
       ExFreePool(buffer);
       goto failed;
     }
   *pBuffer = buffer;
   *pLength = length;
  failed:
-  DbgOut(("OrbGetDeviceProperty(): exit, status %x\n", status));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbGetDeviceProperty(): exit, status %x\n", status));
 
   return status;
 }
@@ -205,14 +205,14 @@ OrbSimulatePnp(IN PDEVICE_OBJECT devObj)
   KEVENT event;
   ULONG stackSize;
 
-  DbgOut(("OrbSimulatePnp(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): enter\n"));
   // Allocate IRP
   stackSize = devObj->StackSize;
-  DbgOut(("OrbSimulatePnp(): stacksize %d\n", stackSize));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): stacksize %d\n", stackSize));
   Irp = IoAllocateIrp(devObj->StackSize + 1, FALSE);
   if (Irp == NULL) 
     {
-      DbgOut(("OrbSimulatePnp(): no IRP\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): no IRP\n"));
       goto failed;
     }
   // Skip our IRP stack location
@@ -235,16 +235,16 @@ OrbSimulatePnp(IN PDEVICE_OBJECT devObj)
     }
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbSimulatePnp(): call not successful, status %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): call not successful, status %x\n", status));
       goto freeirp;
     }
-  //DbgOut(("OrbSimulatePnp(): returned ID: %ws\n", (PVOID) Irp->IoStatus.Information));
-  DbgOut(("OrbSimulatePnp(): returned ID: %p\n", (PVOID) Irp->IoStatus.Information));
+  //DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): returned ID: %ws\n", (PVOID) Irp->IoStatus.Information));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): returned ID: %p\n", (PVOID) Irp->IoStatus.Information));
   ExFreePool((PVOID) Irp->IoStatus.Information);
  freeirp:
   IoFreeIrp(Irp);
  failed:
-  DbgOut(("OrbSimulatePnp(): exit, status %x\n", status));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbSimulatePnp(): exit, status %x\n", status));
 }
 
 // Just debugging for now
@@ -257,12 +257,12 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
   CHAR buffer[256];
 
   model = 0xffff;
-  DbgOut(("OrbNotifyCheck(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCheck(): enter\n"));
 #if 0
   status = OrbGetDeviceProperty(devObj, DevicePropertyManufacturer, &buffer, &len);
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbNotifyCheck(): failed, %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCheck(): failed, %x\n", status));
       goto failed;
     }
   ExFreePool(buffer);
@@ -280,17 +280,17 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
   //now look in "buffer" and see if we find our strings
   if ( OrbBufferContainsOrbStartupString( buffer , 256 ) )
     {
-      DbgOut(( "OrbNotifyCheck(): ****DETECTED SPACEORB****" ));
+      DbgOut( ORB_DBG_NOTIFY, ( "OrbNotifyCheck(): ****DETECTED SPACEORB****" ));
       model = 0;
     }
   if ( OrbBufferContainsBallStartupString( buffer, 256 ) )
     {
-      DbgOut(( "OrbNotifyCheck(): ****DETECTED SPACEBALL****" ));
+      DbgOut( ORB_DBG_NOTIFY, ( "OrbNotifyCheck(): ****DETECTED SPACEBALL****" ));
       //      model = 1; disabled to further test hidsporb driver
     }
   OrbPowerDown(devObj);
 failed:
-  DbgOut(("OrbNotifyCheck(): exit\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCheck(): exit\n"));
   return model;
 }
 
@@ -360,7 +360,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   PDEVICE_OBJECT pdo;
   PPDO_EXTENSION pdevExt;
 
-  DbgOut(("OrbNotifyArrival(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): enter\n"));
   free = 1;
   devExt = (PDEVICE_EXTENSION) ctx->fdo->DeviceExtension;
   // Acquire FDO removelock
@@ -368,7 +368,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   // Couldn't get lock, means device is removing
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbNotifyArrival(): cant get removelock, status %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): cant get removelock, status %x\n", status));
       goto failed;
     }
   // Init string
@@ -382,17 +382,17 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   // we don't care about this failure
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbNotifyArrival(): cant open device %ws, status %x\n", ctx->linkName, status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): cant open device %ws, status %x\n", ctx->linkName, status));
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
     }
-  DbgOut(("OrbNotifyArrival(): got dev obj %p, file obj %p\n", devObj, fileObj));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): got dev obj %p, file obj %p\n", devObj, fileObj));
   // Get ORB model
   model = OrbNotifyCheck(devObj);
-  DbgOut(("OrbNotifyArrival(): found orb, model %d", model ));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): found orb, model %d", model ));
   // Deref file object if we didn't find ORB
   if (model == 0xffff) {
-      DbgOut(("OrbNotifyArrival(): ORB not detected\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): ORB not detected\n"));
       ObDereferenceObject(fileObj);
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
@@ -401,7 +401,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   status = OrbCreatePdo(ctx->fdo, &pdo);
   // Fail if no success
   if (!NT_SUCCESS(status)) {
-      DbgOut(("OrbNotifyArrival(): cant alloc PDO, status %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): cant alloc PDO, status %x\n", status));
       ObDereferenceObject(fileObj);
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
@@ -432,15 +432,15 @@ failed:
   if (free) {
       ExFreePool(ctx->linkName);
   }
-  DbgOut(("OrbNotifyArrival(): exit\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): exit\n"));
 }
 
 // This function is called from a worker thread context
 VOID
 OrbNotifyRemoval(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
 {
-  DbgOut(("OrbNotifyRemoval(): enter\n"));
-  DbgOut(("OrbNotifyRemoval(): exit\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): exit\n"));
 }
 
 // Create PDO device object
@@ -452,16 +452,16 @@ OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo)
   PPDO_EXTENSION pdevExt;
   NTSTATUS status = STATUS_SUCCESS;
 
-  DbgOut(("OrbCreatePdo(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): enter\n"));
   devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
-  DbgOut(("OrbCreatePdo(): fdo %p devExt %p, drvObj %p\n", fdo, devExt, devExt->DriverObject));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): fdo %p devExt %p, drvObj %p\n", fdo, devExt, devExt->DriverObject));
   pdo = NULL;
   *ppdo = NULL;
   status = IoCreateDevice(devExt->DriverObject, sizeof(PDO_EXTENSION), NULL,
 			  FILE_DEVICE_UNKNOWN, FILE_AUTOGENERATED_DEVICE_NAME, TRUE, &pdo);
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbCreatePdo(): cant create device object, %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): cant create device object, %x\n", status));
       goto failed;
     }
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
@@ -482,7 +482,7 @@ OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo)
   pdo->Flags &= ~DO_DEVICE_INITIALIZING;
   *ppdo = pdo;
  failed:
-  DbgOut(("OrbCreatePdo(): exit, PDO %p, %x\n", pdo, status));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): exit, PDO %p, %x\n", pdo, status));
 
   return status;
 }
@@ -497,8 +497,8 @@ OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
 {
   PPDO_EXTENSION pdevExt;
 
-  DbgOut(("OrbInitPdo(): enter\n"));
-  DbgOut(("OrbInitPdo(): PDO %p trgFdo %p hardwareId %ws deviceId %ws numDevice %d\n",
+  DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): enter\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): PDO %p trgFdo %p hardwareId %ws deviceId %ws numDevice %d\n",
 	  pdo, targetFdo, hardwareId, deviceId, numDevice));
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   // We don't attach to stack
@@ -506,7 +506,7 @@ OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
   pdevExt->nextDevObj = IoAttachDeviceToDeviceStack(pdo, targetFdo);
   if (pdevExt->nextDevObj == NULL) 
     {
-      DbgOut(("OrbInitPdo(): cant attach!\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): cant attach!\n"));
 
       return STATUS_NO_SUCH_DEVICE;
     }
@@ -522,7 +522,7 @@ OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
   pdevExt->deviceId = deviceId;
   pdevExt->numDevice = numDevice;
   pdevExt->fileObj = fileObj;
-  DbgOut(("OrbInitPdo(): exit\n"));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): exit\n"));
 
   return STATUS_SUCCESS;
 }
@@ -557,7 +557,7 @@ XXX
   // Couldn't get lock, means device is removing
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbWorkRoutine(): cant get removelock, status %x\n", status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): cant get removelock, status %x\n", status));
       goto failed;
     }
   // Get target device object pointer
@@ -569,27 +569,27 @@ XXX
   // we don't care about this failure
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbWorkRoutine(): cant open device %ws, status %x\n", ctx->linkName.Buffer, status));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): cant open device %ws, status %x\n", ctx->linkName.Buffer, status));
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
     }
-  DbgOut(("OrbWorkRoutine(): got dev obj %p, file obj %p\n", devObj, file));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): got dev obj %p, file obj %p\n", devObj, file));
   // dbg dbg dbg
   status = OrbCreatePdo(devExt->devObj, &pdo);
   if (!NT_SUCCESS(status)) 
     {
-      DbgOut(("OrbWorkRoutine(): cant alloc PDO\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): cant alloc PDO\n"));
       ObDereferenceObject(file);
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
     }
   // We have PDO
-  DbgOut(("OrbWorkRoutine(): allocated PDO %p\n", pdo));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): allocated PDO %p\n", pdo));
   nextDevObj = IoAttachDeviceToDeviceStack(pdo, devObj);
   if (nextDevObj == NULL) 
     {
       // Coudn't attach
-      DbgOut(("OrbWorkRoutine(): couldnt attach\n"));
+      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): couldnt attach\n"));
       // Delete PDO
       IoDeleteDevice(pdo);
       // Deref file object
@@ -598,7 +598,7 @@ XXX
       IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
       goto failed;
     }
-  DbgOut(("OrbWorkRoutine(): attached %p to n %p/d %p\n", pdo, nextDevObj, devObj));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): attached %p to n %p/d %p\n", pdo, nextDevObj, devObj));
   // Save serial's device object pointer
   // in PDO's device extension
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;

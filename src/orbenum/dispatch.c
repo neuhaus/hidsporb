@@ -13,7 +13,7 @@ OrbEnumDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
   PIO_STACK_LOCATION irpSp;
   ULONG major;
 
-  DbgOut(("OrbEnumDispatch(): enter\n"));
+  DbgOut( ORB_DBG_DISPATCH, ("OrbEnumDispatch(): enter\n"));
   pdevExt = (PPDO_EXTENSION) devObj->DeviceExtension;
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   major = irpSp->MajorFunction;
@@ -25,7 +25,7 @@ OrbEnumDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
       // Fail request if can't get lock
       if (!NT_SUCCESS(status)) 
 	{
-	  DbgOut(("OrbEnumDispatch(): no remove lock\n"));
+	  DbgOut( ORB_DBG_DISPATCH, ("OrbEnumDispatch(): no remove lock\n"));
 
 	  return CompleteIrp(Irp, status, 0);
 	}
@@ -35,7 +35,7 @@ OrbEnumDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
       if ((major == IRP_MJ_CREATE) || (major == IRP_MJ_CLOSE)) 
 	{
 	  // Emulate CREATE/CLOSE stuff
-	  DbgOut(("OrbEnumDispatch(): CREATE/CLOSE\n"));
+	  DbgOut( ORB_DBG_DISPATCH, ("OrbEnumDispatch(): CREATE/CLOSE\n"));
 	  IoReleaseRemoveLock(&pdevExt->RemoveLock, Irp);
 
 	  return CompleteIrp(Irp, STATUS_SUCCESS, 0);
@@ -44,14 +44,14 @@ OrbEnumDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
       IoSkipCurrentIrpStackLocation(Irp);
       // Call lower driver (serenum)
       status = IoCallDriver(pdevExt->nextDevObj, Irp);
-      DbgOut(("OrbEnumDispatch(): PDO call %d, status %x\n", major, status));
+      DbgOut( ORB_DBG_DISPATCH, ("OrbEnumDispatch(): PDO call %d, status %x\n", major, status));
       // Release remove lock
       IoReleaseRemoveLock(&pdevExt->RemoveLock, Irp);
     } else {
       // Complete IRP with STATUS_NOT_SUPPORTED
       CompleteIrp(Irp, status, 0);
     }
-  DbgOut(("OrbEnumDispatch(): exit, status %x\n", status));
+  DbgOut( ORB_DBG_DISPATCH, ("OrbEnumDispatch(): exit, status %x\n", status));
 
   return status;
 }
