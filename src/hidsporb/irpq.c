@@ -145,7 +145,8 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 #else
 	// Mouse TLC
 	// Mouse works, now we have ot translate it to move smoothly
-	mouseRep.reportId = 3;
+	// TBD: Replace = 4 with some constant!
+	mouseRep.reportId = 4;
 	mouseRep.buttons = OrbMapButtons(orbData) & 7;
 	mouseRep.Axes[0] = OrbLogicalAxisValue(orbData, 0, 0) / 8;
 	mouseRep.Axes[1] = OrbLogicalAxisValue(orbData, 1, 0) / 8;
@@ -154,5 +155,5 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	CompleteIrp(item->Irp, STATUS_SUCCESS, sizeof(HIDSPORB_MOUSE_REPORT));
 #endif
 	// Free queue item
-	ExFreePool(item);
+	ExDeleteToNPagedLookasideList(&devExt->readQueuePool, item);
 }

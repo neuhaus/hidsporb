@@ -179,7 +179,7 @@ OrbReadReport(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Queue this request
 	status = OrbQueueReadReport(devExt, Irp);
 failed:
-	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): exit, status %x\n"));
+	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): exit, status %x\n", status));
 
 	return status;
 }
