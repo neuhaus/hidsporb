@@ -88,9 +88,30 @@ show_orb_status( orb_control& control )
 	      ( control.precision_button_type() == 1 ) ? "physical" : "logical",
 	      control.precision_button_index() );
     }
-  printf( "(warning: null region is in testing and may not work correctly)\t" );
+  printf( "(warning: null region is in testing and may not work correctly)\n\n" );
 }
 
+
+void
+show_all_orbs_status( void )
+{
+  int counter = 0;
+  bool should_continue = true;
+  
+  while ( should_continue )
+    {
+      orb_control control( counter );
+      if ( control.is_initialized() )
+	{
+	  show_orb_status( control );
+	  ++counter;
+	}
+      else
+	{
+	  should_continue = false;
+	}
+    }
+}
 
 //returns the number of arguments consumed during this parse
 int
@@ -618,7 +639,7 @@ int
 parse_read_args_from_file( int arg_count, 
 			   char** arg_vector, 
 			   int arg_index,
-			   orb_control& control );
+			   int starting_orb_index );
 
 int
 parse_download_sensitivity_curve( int arg_count, 
@@ -675,84 +696,112 @@ parse_reset_sensitivity_curve( int arg_count,
 }
 
 int
+parse_change_orb_index( int arg_count,
+			char** arg_vector,
+			int arg_index,
+			int* p_index )
+{
+  REQUIRE( strcmp( arg_vector[ arg_index ], "--orb" ) == 0 );
+  REQUIRE( arg_count > arg_index + 1 );
+  
+  int new_index = atoi( arg_vector[ arg_index + 1 ] );
+  (*p_index) = new_index;
+
+  return 2;
+}
+
+int
 parse_args( int arg_count,
 	    char** arg_vector,
-	    orb_control& control )
+	    int starting_orb_index )
 {
   int result = 0;
   int index = 1;
+  int orb_index = starting_orb_index;
+  orb_control* p_control = new orb_control( starting_orb_index );
   while (index < arg_count)
     {
+      if ( !(p_control->is_initialized() ) )
+	{
+	  printf( "Orb with index %d cannot be controlled.\n", p_control->index() );
+	}
       if ( strcmp( arg_vector[ index ], "--set-axis" ) == 0 )
 	{
-	  index += parse_set_axis( arg_count, arg_vector, index, control );
+	  index += parse_set_axis( arg_count, arg_vector, index, (*p_control) );
 	}
       
       else if ( strcmp( arg_vector[ index ], "--set-facing" ) == 0 )
 	{
-	  index += parse_set_facing( arg_count, arg_vector, index, control );
+	  index += parse_set_facing( arg_count, arg_vector, index, (*p_control) );
 	}
 
       else if ( strcmp( arg_vector[ index ], "--set-chording" ) == 0 )
 	{
-	  index += parse_set_chording( arg_count, arg_vector, index, control );
+	  index += parse_set_chording( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-null-region" ) == 0 )
 	{
-	  index += parse_set_null_region( arg_count, arg_vector, index, control );
+	  index += parse_set_null_region( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-sensitivity" ) == 0 )
 	{
-	  index += parse_set_sensitivity( arg_count, arg_vector, index, control );
+	  index += parse_set_sensitivity( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-polarity" ) == 0 )
 	{
-	  index += parse_set_polarity( arg_count, arg_vector, index, control );
+	  index += parse_set_polarity( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-master-sensitivity" ) == 0)
 	{
-	  index += parse_set_master_sensitivity( arg_count, arg_vector, index, control );
+	  index += parse_set_master_sensitivity( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-gain" ) == 0)
 	{
-	  index += parse_set_gain( arg_count, arg_vector, index, control );
+	  index += parse_set_gain( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-master-gain" ) == 0)
 	{
-	  index += parse_set_master_gain( arg_count, arg_vector, index, control );
+	  index += parse_set_master_gain( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-precision-sensitivity" ) == 0)
 	{
-	  index += parse_set_precision_sensitivity( arg_count, arg_vector, index, control );
+	  index += parse_set_precision_sensitivity( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-precision-gain" ) == 0)
 	{
-	  index += parse_set_precision_gain( arg_count, arg_vector, index, control );
+	  index += parse_set_precision_gain( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-precision-button" ) == 0)
 	{
-	  index += parse_set_precision_button( arg_count, arg_vector, index, control );
+	  index += parse_set_precision_button( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--set-defaults" ) == 0 )
 	{
-	  index += parse_set_defaults( arg_count, arg_vector, index, control );
+	  index += parse_set_defaults( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--upload-sensitivity-curve" ) == 0 )
 	{
-	  index += parse_upload_sensitivity_curve( arg_count, arg_vector, index, control );
+	  index += parse_upload_sensitivity_curve( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--download-sensitivity-curve" ) == 0 )
 	{
-	  index += parse_download_sensitivity_curve( arg_count, arg_vector, index, control );
+	  index += parse_download_sensitivity_curve( arg_count, arg_vector, index, (*p_control) );
 	}
       else if ( strcmp( arg_vector[ index ], "--reset-sensitivity-curve" ) == 0 )
 	{
-	  index += parse_reset_sensitivity_curve( arg_count, arg_vector, index, control );
+	  index += parse_reset_sensitivity_curve( arg_count, arg_vector, index, (*p_control) );
+	}
+      else if ( strcmp( arg_vector[ index ], "--orb" ) == 0 )
+	{
+	  index += parse_change_orb_index( arg_count, arg_vector, index, &orb_index );
+	  //replace existing control
+	  delete p_control;
+	  p_control = new orb_control( orb_index );
 	}
       else if ( (strcmp( arg_vector[ index ], "--from-file" ) == 0 ) ||
 		(strcmp( arg_vector[ index ], "-f" ) == 0 ))
 	{
-	  index += parse_read_args_from_file( arg_count, arg_vector, index, control );
+	  index += parse_read_args_from_file( arg_count, arg_vector, index, orb_index );
 	}
 
       else
@@ -762,6 +811,7 @@ parse_args( int arg_count,
 	  result = -1;
 	}
     }
+  delete p_control;
   return result;
 }
 
@@ -774,7 +824,7 @@ Usage: \n\
 where [commands] is one or more of \n\
   --set-axis logical-axis physical-axis \n\
   --set-facing ('horizontal' | 'vertical') \n\
-  --set-chording ('on' | 'off')\n \
+  --set-chording ('on' | 'off')\n\
   --set-null-region (0-127)\n\
   --set-sensitivity (axis) (0-5)\n\
   --set-master-sensitivity (0-5)\n\
@@ -846,7 +896,7 @@ free_arg_vector( char** buffer, int count )
 
 void
 parse_args_from_file( char* filename, 
-		      orb_control& control )
+		      int starting_orb_index )
 {
   char** buffer = NULL;
   int count = 0;
@@ -854,7 +904,7 @@ parse_args_from_file( char* filename,
   if ( (buffer != NULL) )
     {
       printf( "Reading commands from file %s\n", filename );
-      parse_args( count, buffer, control );
+      parse_args( count, buffer, starting_orb_index );
       free_arg_vector( buffer, count );
     }
   else
@@ -868,39 +918,41 @@ int
 parse_read_args_from_file( int arg_count,
 			   char** arg_vector,
 			   int arg_index,
-			   orb_control& control )
+			   int starting_orb_index )
 {
   REQUIRE( ( strcmp( arg_vector[ arg_index ], "--from-file" ) == 0 ) ||
 	   ( strcmp( arg_vector[ arg_index ], "-f" ) == 0 ));
   REQUIRE( arg_count > arg_index + 1 );
-  parse_args_from_file( arg_vector[ arg_index + 1 ], control );
+  parse_args_from_file( arg_vector[ arg_index + 1 ], starting_orb_index );
   return 2;
 }
 
+int
+orbs_exist( void )
+{
+  orb_control control( 0 );
+  return control.is_initialized();
+}
 
 void __cdecl
 main( int arg_count, char** arg_vector )
 {
 
-  orb_control control( 0 );
-  if ( control.is_initialized() )
+  if ( orbs_exist() )
     {
-      if ( arg_count < 2 )
+      if ( arg_count >= 2 )
 	{
-	  show_orb_status( control );
-	}
-      else
-	{
-	  if ( parse_args( arg_count, arg_vector, control ) == -1 )
+	  if ( parse_args( arg_count, arg_vector, 0 ) == -1 )
 	    {
 	      print_usage();
 	    }
 	  printf( "\n\nCommands complete.\n" );
-	  show_orb_status(control);
 	}
+      show_all_orbs_status();
     }
   else
     {
+      orb_control control( 0 );
       printf( "Could not initialize control; either the orb is not installed\nor the driver is not operating correctly\n\tError: %s\n", control.last_error_string() );
     }
 }
