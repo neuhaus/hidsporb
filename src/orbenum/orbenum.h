@@ -36,6 +36,10 @@ typedef struct _DEVICE_EXTENSION {
 	ULONG		numDevices;	// Number of PDOs
 	PDEVICE_OBJECT	devArray[ORB_MAX_DEVICES];	// Orbs array
 	PVOID		notifyEntry;	// IoRegPnpNfy() stuff
+	LIST_ENTRY	portList;	// ORB_PORT list
+	FAST_MUTEX	portMutex;	// Mutex for protecting list
+	ULONG		pdoMask;	// Used instances numbers
+	// NOTE: We can't use the same InstanceId's or PNP will bugcheck!
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
 // Note that DEVICE/PDO_EXTENSION must be in sync!!!
@@ -52,10 +56,11 @@ typedef struct _PDO_EXTENSION {
 	// END OF common extension block
 	PFILE_OBJECT	fileObj;	// Pointer to file object from IoGetDevObP
 	PWCHAR		linkName;	// Link name
-	ULONG		numDevice;	// Device number for PNP (instance Id)
+	ULONG		numDevice;	// devArray index
+	ULONG		instanceId;	// Instance ID for PNP
         PWCHAR		model;		// Model (e.g. 'SpaceOrb 360')
 	PWCHAR		hardwareId;	// Hardware ID (e.g. *SPC0360)
-	PWCHAR		deviceId;	// Device ID (e.g. ORBENUM\*FOOBAR)
+	PWCHAR		deviceId;	// Device ID (e.g. ORBENUM\*SPC0360)
 } PDO_EXTENSION, *PPDO_EXTENSION;
 
 // initunlo.c
@@ -70,7 +75,7 @@ OrbEnumUnload(
     IN  PDRIVER_OBJECT DriverObject
     );
 
-
+// PNP functions
 NTSTATUS
 OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo);
 
@@ -87,53 +92,56 @@ NTSTATUS
 OrbPnpComplete(IN PDEVICE_OBJECT, IN PIRP, IN PKEVENT);
 
 NTSTATUS
-OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+OrbFdoPnp(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
 
 NTSTATUS
-OrbFdoStart(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+OrbFdoStart(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
 
 NTSTATUS
-OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+OrbFdoRemove(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
 
 NTSTATUS
-OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+OrbFdoQueryRelations(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
+
+NTSTATUS
+OrbFdoQueryPnpState(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
 
 // PDO functions
 NTSTATUS
-OrbPdoPnp(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoPnp(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoStart(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoStart(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoRemove(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryRelations(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryRelations(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryId(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryId(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryInstanceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryInstanceId(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryDeviceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryDeviceId(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryHardwareId(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
-OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoQueryDeviceText(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
 OrbPdoCallComplete(IN PDEVICE_OBJECT fdo, IN PIRP fdoIrp, PVOID nothing);
 
 NTSTATUS
-OrbPdoCallFdo(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
+OrbPdoCallFdo(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
-#include "detect.h"
 #include "notify.h"
+#include "detect.h"
 #include "serial.h"
 #include "orbio.h"
 #include "misc.h"
@@ -141,5 +149,6 @@ OrbPdoCallFdo(IN PDEVICE_OBJECT pdo, IN PIRP Irp);
 #include "debug.h"
 #include "power.h"
 #include "dispatch.h"
+#include "orbport.h"
 
 #endif

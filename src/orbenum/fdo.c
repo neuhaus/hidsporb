@@ -10,15 +10,14 @@
 
 // Handle start/stop device like functional driver does
 NTSTATUS
-OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
+OrbFdoPnp(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 {
-  PDEVICE_EXTENSION devExt;
   PIO_STACK_LOCATION irpSp;
   NTSTATUS status;
   UCHAR func;
 
   PAGED_CODE();
-  devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
+  // Get current I/O stack location and stuff
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   func = irpSp->MinorFunction;
   DbgOut( ORB_DBG_FDO, ("OrbFdoPnp(): enter %s\n", PnpToString(func)));
@@ -38,15 +37,15 @@ OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
       // Device relations
       // PNP manager sends this IRP to enumerate our bus
       // We return list of PDOs
-      status = OrbFdoQueryRelations(fdo, Irp);
+      status = OrbFdoQueryRelations(devExt, Irp);
       break;
     case IRP_MN_START_DEVICE:
       // Start ORB minibus FDO
-      status = OrbFdoStart(fdo, Irp);
+      status = OrbFdoStart(devExt, Irp);
       break;
     case IRP_MN_REMOVE_DEVICE:
       // Remove ORB minibus FDO
-      status = OrbFdoRemove(fdo, Irp);
+      status = OrbFdoRemove(devExt, Irp);
       break;
     case IRP_MN_SURPRISE_REMOVAL:
       // I doubt that will ever happen, but we must handle it anyway
@@ -63,6 +62,10 @@ OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
       // We don't handle it
       status = CallNextDriverWait(devExt->nextDevObj, Irp);
       CompleteIrp(Irp, status, Irp->IoStatus.Information);
+      break;
+    // Handle this!
+    case IRP_MN_QUERY_PNP_DEVICE_STATE:
+      status = OrbFdoQueryPnpState(devExt, Irp);
       break;
     default:
       // Call lower bus driver for all other cases
@@ -82,19 +85,16 @@ OrbFdoPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
 // Start FDO device
 // Nothing special happens here
 NTSTATUS
-OrbFdoStart(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
+OrbFdoStart(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 {
-  PDEVICE_EXTENSION devExt;
-  PDEVICE_OBJECT pdo;
   KEVENT event;
   NTSTATUS status;
 
   DbgOut( ORB_DBG_FDO, ("OrbFdoStart(): enter\n"));
-  devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   // Call root bus driver
   Irp->IoStatus.Status = STATUS_SUCCESS;
   status = CallNextDriverWait(devExt->nextDevObj, Irp);
-  if (NT_SUCCESS(status) && NT_SUCCESS(Irp->IoStatus.Status)) 
+  if (NT_SUCCESS(status) && NT_SUCCESS(Irp->IoStatus.Status))
     {
       if (NT_SUCCESS(status)) 
 	{
@@ -118,16 +118,15 @@ OrbFdoStart(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
 
 // Remove ORB minibus FDO device
 NTSTATUS
-OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
+OrbFdoRemove(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 {
   UNICODE_STRING symName;
   ULONG i;
-  PDEVICE_EXTENSION devExt;
   PPDO_EXTENSION pdevExt;
   NTSTATUS status;
+  PDEVICE_OBJECT fdo;
 
   DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): enter\n"));
-  devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   // Wait for pending I/O to complete
   IoReleaseRemoveLockAndWait(&devExt->RemoveLock, Irp);
   Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -142,21 +141,28 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDOs\n", devExt->numDevices));
   for (i = 0; i < devExt->numDevices; i++) 
     {
-      DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDO %p\n", i, devExt->devArray[0]));
+      DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDO %p\n", i, devExt->devArray[i]));
       pdevExt = (PPDO_EXTENSION) devExt->devArray[i]->DeviceExtension;
+#if 0
       // Free link name
       ExFreePool(pdevExt->linkName);
       IoDeleteDevice(devExt->devArray[i]);
+#endif
+      // Delete PDO
+      OrbDeletePdo((PPDO_EXTENSION) devExt->devArray[i]->DeviceExtension);
     }
   // Unregister notification callback
   IoUnregisterPlugPlayNotification(devExt->notifyEntry);
   devExt->notifyEntry = NULL;
   OrbUnlockPdos(devExt);
+#if 0
   // Delete symbolic link
   RtlInitUnicodeString(&symName, DOS_DEVICE_NAME);
   IoDeleteSymbolicLink(&symName);
+#endif
   // Detach and delete device object
   IoDetachDevice(devExt->nextDevObj);
+  fdo = devExt->devObj;
   IoDeleteDevice(fdo);
   DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): exit %x\n", status));
 
@@ -167,18 +173,30 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
 // This is where we tell PNP about all our devices
 //
 NTSTATUS
-OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
+OrbFdoQueryRelations(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 {
-  PDEVICE_EXTENSION devExt;
   PIO_STACK_LOCATION irpSp;
   NTSTATUS status;
   PDEVICE_RELATIONS rel, oldrel;
-  ULONG count, size, nCopy, i;
+  ULONG count, size, nCopy, i, relType;
 
   irpSp = IoGetCurrentIrpStackLocation(Irp);
-  devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
   DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): enter, old rel %p\n", Irp->IoStatus.Information));
-  if (irpSp->Parameters.QueryDeviceRelations.Type != BusRelations) 
+  relType = irpSp->Parameters.QueryDeviceRelations.Type;
+#if DBG
+	switch (relType) {
+		case TargetDeviceRelation:
+		DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): target relations\n"));
+		break;
+		case EjectionRelations:
+		DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): ejection relations\n"));
+		break;
+		case RemovalRelations:
+		DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): removal relations\n"));
+		break;
+	}
+#endif
+  if (relType != BusRelations) 
     {
       // Simply pass request to root bus device
       DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): not BusRelations\n"));
@@ -259,4 +277,25 @@ OrbFdoQueryRelations(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   DbgOut( ORB_DBG_FDO, ("OrbFdoQueryRelations(): status %x\n", status));
   //return CompleteIrp(Irp, status, Irp->IoStatus.Information);
   return CallNextDriver(devExt->nextDevObj, Irp);
+}
+
+NTSTATUS
+OrbFdoQueryPnpState(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
+{
+	NTSTATUS status;
+	PNP_DEVICE_STATE state = 0;
+
+	DbgOut(ORB_DBG_FDO, ("OrbFdoQueryPnpState(): enter\n"));
+	// Set correct PNP state
+	if (devExt->Removed) {
+		state |= PNP_DEVICE_REMOVED;
+	}
+	if (!devExt->Started) {
+		state |= PNP_DEVICE_FAILED;
+	}
+	// Complete IRP
+	status = CompleteIrp(Irp, STATUS_SUCCESS, state);
+	DbgOut(ORB_DBG_FDO, ("OrbFdoQueryPnpState(): exit, status %x\n", status));
+
+	return status;
 }

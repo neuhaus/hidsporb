@@ -19,6 +19,7 @@ detect.c \
 notify.c \
 lock.c \
 orbio.c \
+orbport.c \
 debug.c \
 ..\serial.c \
 ..\misc.c \

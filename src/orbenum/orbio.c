@@ -157,18 +157,18 @@ OrbPowerDown(IN PDEVICE_OBJECT devObj)
   return status;
 }
 
-VOID
-OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
+ULONG
+OrbReadData(IN PDEVICE_OBJECT devObj, PCHAR buffer, IN ULONG size)
 {
   //  CHAR buffer[256], c; changed vputz 20020506 so that buffer can be
   //  passed in as argument
   CHAR c;
-  ULONG nRead, i;
+  ULONG nRead = 0, i;
   NTSTATUS status;
   SERIAL_TIMEOUTS timeouts;
   PIRP Irp;
 
-  DbgOut( ORB_DBG_ORBIO, ("OrbReadSomething(): enter\n"));
+  DbgOut( ORB_DBG_ORBIO, ("OrbReadData(): enter, buf %p len %d\n", buffer, size));
   timeouts.ReadIntervalTimeout = MAXULONG;
   timeouts.ReadTotalTimeoutMultiplier = MAXULONG;
   timeouts.ReadTotalTimeoutConstant = 200;
@@ -198,7 +198,7 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
   nRead = 0;
   status = OrbSerReadChar(devObj, Irp, &buffer[nRead]);
   // While we're reading something
-  while (NT_SUCCESS(status) && (nRead < 253)) 
+  while (NT_SUCCESS(status) && (nRead < size)) 
     {
       buffer[nRead] &= 0x7f;
       nRead++;
@@ -224,4 +224,6 @@ failed:
       IoFreeIrp( Irp );
   }
   DbgOut( ORB_DBG_ORBIO, ("OrbReadSomething(): exit\n"));
+
+  return nRead;
 }

@@ -18,14 +18,16 @@ VOID
 OrbWorkRoutine(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx);
 
 NTSTATUS
-OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo);
+OrbCreatePdo(IN PDEVICE_EXTENSION devExt, OUT PDEVICE_OBJECT *ppdo);
 
 NTSTATUS
 OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
 IN PFILE_OBJECT fileObj, IN PWCHAR linkName,
 IN PWCHAR model, IN PWCHAR hardwareId,
-IN PWCHAR deviceId, IN ULONG numDevice);
+IN PWCHAR deviceId, IN ULONG instanceId, IN ULONG numDevice);
 
+// old cruft, to be removed soon -Yuri
+#if OLD_CRUFT
 VOID
 OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx);
 
@@ -48,3 +50,4 @@ OrbBlockContains( IN CONST PVOID p1,
 		  IN SIZE_T p1_size,
 		  IN CONST PVOID p2,
 		  IN SIZE_T p2_size );
+#endif

@@ -6,15 +6,6 @@
 #include "orbenum.h"
 
 extern ULONG OrbEnumNumDevices;
-extern ULONG notagain;
-
-// ORB models
-// todo: move to include files
-typedef struct _ORB_MODEL {
-	PWCHAR model;
-	PWCHAR hardwareId;
-	PWCHAR deviceId;
-} ORB_MODEL, *PORB_MODEL;
 
 // Two models yet
 ORB_MODEL orbModels[2] = {
@@ -57,12 +48,12 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     arrival = 0xc001;
     len = sizeof(pnp->Event);
     // Find out what kind of event it is
-    if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_ARRIVAL, len) == len) 
+    if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_ARRIVAL, len) == len)
       {
 	DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): arrival\n"));
 	arrival = 1;
       } else
-	if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_REMOVAL, len) == len) 
+	if (RtlCompareMemory(&pnp->Event, (LPGUID) &GUID_DEVICE_INTERFACE_REMOVAL, len) == len)
 	  {
 	    DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): removal\n"));
 	    arrival = 0;
@@ -78,7 +69,7 @@ OrbPnpNotifyCallback(IN PDEVICE_INTERFACE_CHANGE_NOTIFICATION pnp, IN PDEVICE_EX
     // Copy name into our buffer
     RtlCopyMemory(linkName, pnp->SymbolicLinkName->Buffer, len * sizeof(WCHAR));
     // Add zero to terminate string
-    linkName[len+1] = 0;
+    linkName[len] = 0;
     // Allocate work item
     work = IoAllocateWorkItem(devExt->devObj);
     DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyCallback(): allocated workitem %p", work));
@@ -120,18 +111,21 @@ OrbWorkRoutine(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   // or in PDOs IRP_MN_START_DEVICE (i think not there!)
   if (ctx->flags == 1) 
     {
-      DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): arrival\n"));
+      DbgOut(ORB_DBG_NOTIFY, ("OrbWorkRoutine(): arrival\n"));
       // Note: notifyarrival frees ctx->linkName if needed
-      OrbNotifyArrival(fdo, ctx);
+      //OrbNotifyArrival(fdo, ctx);
+      OrbPortArrival((PDEVICE_EXTENSION) fdo->DeviceExtension, ctx);
     } else
       if (ctx->flags == 0) 
 	{
-	  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): removal\n"));
-	  OrbNotifyRemoval(fdo, ctx);
+	  DbgOut(ORB_DBG_NOTIFY, ("OrbWorkRoutine(): removal\n"));
+	  //OrbNotifyRemoval(fdo, ctx);
+          OrbPortRemoval((PDEVICE_EXTENSION) fdo->DeviceExtension, ctx);
           // Free linkName buffer and context structure
           ExFreePool(ctx->linkName);
 	} else {
-	  DbgOut( ORB_DBG_NOTIFY, ("OrbWorkRoutine(): not arrival, nor removal?\n"));
+	  DbgOut(ORB_DBG_NOTIFY, ("OrbWorkRoutine(): not arrival, nor removal?\n"));
+          ExFreePool(ctx->linkName);
 	}
   IoFreeWorkItem(ctx->item);
   ExFreePool(ctx);
@@ -195,6 +189,8 @@ OrbSimComplete(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN PKEVENT event)
   return STATUS_MORE_PROCESSING_REQUIRED;
 }
 
+// Old cruft, to be removed soon -Yuri
+#if OLD_CRUFT
 // XXX magic hackery, don't mess with it too much!!!
 VOID
 OrbSimulatePnp(IN PDEVICE_OBJECT devObj)
@@ -276,7 +272,7 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
       OrbPowerDown(devObj);
       goto failed;
     }
-  OrbReadSomething(devObj, buffer);
+  //OrbReadSomething(devObj, buffer);
   //now look in "buffer" and see if we find our strings
   if ( OrbBufferContainsOrbStartupString( buffer , 256 ) )
     {
@@ -398,7 +394,7 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
       goto failed;
   }
   // Well, we found ORB, create PDO for it
-  status = OrbCreatePdo(ctx->fdo, &pdo);
+  status = OrbCreatePdo(devExt, &pdo);
   // Fail if no success
   if (!NT_SUCCESS(status)) {
       DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): cant alloc PDO, status %x\n", status));
@@ -480,19 +476,19 @@ OrbNotifyRemoval(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   }
   DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): exit\n"));
 }
+#endif
+// OLD cruft, to be removed soon
 
 // Create PDO device object
 NTSTATUS
-OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo)
+OrbCreatePdo(IN PDEVICE_EXTENSION devExt, OUT PDEVICE_OBJECT *ppdo)
 {
   PDEVICE_OBJECT pdo;
-  PDEVICE_EXTENSION devExt;
   PPDO_EXTENSION pdevExt;
   NTSTATUS status = STATUS_SUCCESS;
 
   DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): enter\n"));
-  devExt = (PDEVICE_EXTENSION) fdo->DeviceExtension;
-  DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): fdo %p devExt %p, drvObj %p\n", fdo, devExt, devExt->DriverObject));
+  DbgOut( ORB_DBG_NOTIFY, ("OrbCreatePdo(): devExt %p, drvObj %p\n", devExt, devExt->DriverObject));
   pdo = NULL;
   *ppdo = NULL;
   status = IoCreateDevice(devExt->DriverObject, sizeof(PDO_EXTENSION), NULL,
@@ -512,9 +508,7 @@ OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo)
   pdevExt->hardwareId = NULL;
   pdevExt->deviceId = NULL;
   pdevExt->numDevice = 0;
-  IoInitializeRemoveLock(&pdevExt->RemoveLock, ORBENUM_TAG,
-			 1,
-			 5);
+  pdevExt->instanceId = ORB_MAX_DEVICES;
   // Note, we should copy Flags in OrbPdoStart()
   pdo->Flags |= (DO_BUFFERED_IO | DO_POWER_PAGABLE);
   pdo->Flags &= ~DO_DEVICE_INITIALIZING;
@@ -531,7 +525,7 @@ OrbCreatePdo(IN PDEVICE_OBJECT fdo, OUT PDEVICE_OBJECT *ppdo)
 NTSTATUS
 OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
 	   IN PFILE_OBJECT fileObj, IN PWCHAR linkName, IN PWCHAR model,
-	   IN PWCHAR hardwareId, IN PWCHAR deviceId, IN ULONG numDevice)
+	   IN PWCHAR hardwareId, IN PWCHAR deviceId, IN ULONG instanceId, IN ULONG numDevice)
 {
   PPDO_EXTENSION pdevExt;
 
@@ -539,16 +533,7 @@ OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
   DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): PDO %p trgFdo %p hardwareId %ws deviceId %ws numDevice %d\n",
 	  pdo, targetFdo, hardwareId, deviceId, numDevice));
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
-  // We don't attach to stack
-#if 0
-  pdevExt->nextDevObj = IoAttachDeviceToDeviceStack(pdo, targetFdo);
-  if (pdevExt->nextDevObj == NULL) 
-    {
-      DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): cant attach!\n"));
-
-      return STATUS_NO_SUCH_DEVICE;
-    }
-#endif
+  // We cat't attach to stack, don't ever do this!
   // Set next device object
   pdevExt->nextDevObj = targetFdo;
   // Correct stack size
@@ -559,7 +544,14 @@ OrbInitPdo(IN PDEVICE_OBJECT pdo, IN PDEVICE_OBJECT targetFdo,
   pdevExt->hardwareId = hardwareId;
   pdevExt->deviceId = deviceId;
   pdevExt->numDevice = numDevice;
+  pdevExt->instanceId = instanceId;
   pdevExt->fileObj = fileObj;
+  pdevExt->Removed = FALSE;
+  IoInitializeRemoveLock(&pdevExt->RemoveLock, ORBENUM_TAG,
+			 1,
+			 5);
+  // Acquire remove lock for deleting
+  //IoAcquireRemoveLock(&pdevExt->RemoveLock, 0);
   DbgOut( ORB_DBG_NOTIFY, ("OrbInitPdo(): exit\n"));
 
   return STATUS_SUCCESS;

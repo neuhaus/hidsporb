@@ -11,5 +11,5 @@ OrbPowerUp(IN PDEVICE_OBJECT devObj);
 NTSTATUS
 OrbPowerDown(IN PDEVICE_OBJECT devObj);
 
-VOID
-OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer);
+ULONG
+OrbReadData(IN PDEVICE_OBJECT devObj, PCHAR buffer, IN ULONG size);

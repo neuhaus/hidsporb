@@ -114,10 +114,14 @@ OrbSerRead(IN PDEVICE_OBJECT devObj, IN PIRP readIrp, OUT PCHAR readBuffer, IN U
 	while (nRead < bufSize) {
 		// Reinitialize Irp
 		IoReuseIrp(readIrp, STATUS_SUCCESS);
+#if 1
 		// Skip our stack location
 		IoSetNextIrpStackLocation(readIrp);
 		// Get current Irp stack location
 		irpSp = IoGetCurrentIrpStackLocation(readIrp);
+#else
+		irpSp = IoGetNextIrpStackLocation(readIrp);
+#endif
 		// Set up stack
 		// Set up function code
 		irpSp->MajorFunction = IRP_MJ_READ;
@@ -199,10 +203,14 @@ OrbSerWrite(IN PDEVICE_OBJECT devObj, IN PIRP writeIrp, IN PCHAR writeBuffer, IN
 	while (nWritten < bufSize) {
 		// Reinitialize Irp
 		IoReuseIrp(writeIrp, STATUS_SUCCESS);
+#if 1
 		// Skip our stack location
 		IoSetNextIrpStackLocation(writeIrp);
 		// Get current Irp stack location
 		irpSp = IoGetCurrentIrpStackLocation(writeIrp);
+#else
+		irpSp = IoGetNextIrpStackLocation(writeIrp);
+#endif
 		// Set up stack
 		// Set up function code
 		irpSp->MajorFunction = IRP_MJ_WRITE;
@@ -268,9 +276,13 @@ OrbSerOpenPort(IN PDEVICE_OBJECT devObj, IN PIRP openIrp)
 	}
 	// Init Irp
 	IoReuseIrp(openIrp, STATUS_SUCCESS);
+#if 1
 	IoSetNextIrpStackLocation(openIrp);
 	// Get next stack location
 	irpSp = IoGetCurrentIrpStackLocation(openIrp);
+#else
+	irpSp = IoGetNextIrpStackLocation(openIrp);
+#endif
 	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
 	// Set up stack location
 	irpSp->MajorFunction = IRP_MJ_CREATE;
@@ -308,22 +320,13 @@ OrbSerClosePort(IN PDEVICE_OBJECT devObj, IN PIRP closeIrp)
 	}
 	// Init Irp
 	IoReuseIrp(closeIrp, STATUS_SUCCESS);
+#if 1
 	IoSetNextIrpStackLocation(closeIrp);
 	// Get next stack location
 	irpSp = IoGetCurrentIrpStackLocation(closeIrp);
-	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
-	// Set up stack location
-	irpSp->MajorFunction = IRP_MJ_CLOSE;
-	// Call serial driver
-	status = CallNextDriverWait(devObj, closeIrp);
-	if (!NT_SUCCESS(status)) {
-		DbgOut(ORB_DBG_SER, ("OrbClosePort(): cant close?, status %x\n", status));
-	}
-	// Init Irp again
-	IoReuseIrp(closeIrp, STATUS_SUCCESS);
-	IoSetNextIrpStackLocation(closeIrp);
-	// Get next stack location
-	irpSp = IoGetCurrentIrpStackLocation(closeIrp);
+#else
+	irpSp = IoGetNextIrpStackLocation(closeIrp);
+#endif
 	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
 	// Set up stack location
 	irpSp->MajorFunction = IRP_MJ_CLEANUP;
@@ -331,6 +334,23 @@ OrbSerClosePort(IN PDEVICE_OBJECT devObj, IN PIRP closeIrp)
 	status = CallNextDriverWait(devObj, closeIrp);
 	if (!NT_SUCCESS(status)) {
 		DbgOut(ORB_DBG_SER, ("OrbClosePort(): cant clean up?, status %x\n", status));
+	}
+	// Init Irp again
+	IoReuseIrp(closeIrp, STATUS_SUCCESS);
+#if 1
+	IoSetNextIrpStackLocation(closeIrp);
+	// Get next stack location
+	irpSp = IoGetCurrentIrpStackLocation(closeIrp);
+#else
+	irpSp = IoGetNextIrpStackLocation(closeIrp);
+#endif
+	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
+	// Set up stack location
+	irpSp->MajorFunction = IRP_MJ_CLOSE;
+	// Call serial driver
+	status = CallNextDriverWait(devObj, closeIrp);
+	if (!NT_SUCCESS(status)) {
+		DbgOut(ORB_DBG_SER, ("OrbClosePort(): cant close?, status %x\n", status));
 	}
 	if (Irp != NULL) {
 		IoFreeIrp(Irp);

@@ -24,8 +24,10 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   PAGED_CODE();
 
   DbgOut( ORB_DBG_PNP, ("OrbEnumAddDevice(): enter\n"));
+#if 0
   // Initialize device name
   RtlInitUnicodeString(&ntDeviceName, ORBENUM_DEVICE_NAME);
+#endif
 
   //
   // Create a device object.
@@ -33,7 +35,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
 
   status = IoCreateDevice (DriverObject,
 			   sizeof (DEVICE_EXTENSION),
-			   &ntDeviceName,
+			   NULL /* &ntDeviceName */,
 			   FILE_DEVICE_UNKNOWN,
 			   0,
 			   FALSE,
@@ -51,6 +53,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
       return status;
     }
 
+#if 0
   RtlInitUnicodeString(&win32DeviceName, DOS_DEVICE_NAME);
 
   // Create symbolic link so user-mode programs can access this
@@ -65,6 +68,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
       IoDeleteDevice(devObj);
       return status;
     }
+#endif
 
   devExt = (PDEVICE_EXTENSION) devObj->DeviceExtension;
 
@@ -77,7 +81,9 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   if (devExt->nextDevObj == NULL) 
     {
       // Delete symlink & device object
+#if 0
       IoDeleteSymbolicLink(&win32DeviceName);
+#endif
       IoDeleteDevice(devObj);
 
       return STATUS_NO_SUCH_DEVICE;
@@ -104,6 +110,7 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   RtlZeroMemory(&devExt->devArray[0], sizeof(devExt->devArray));
   // Initialize array mutex
   ExInitializeFastMutex(&devExt->devArrayMutex);
+  OrbInitPortList(devExt);
   // Set up PNP notification to know about COM ports
   // Note that IoRegisterPnpNfy references our driverobject
   // so make sure we deregister this stuff before (!!!) unloading
@@ -119,8 +126,10 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
   if (!NT_SUCCESS(status)) 
     {
       DbgOut( ORB_DBG_PNP, ("OrbPnpNotifyReg(): failed %x\n", status));
+#if 0
       // Delete symlink
       IoDeleteSymbolicLink(&win32DeviceName);
+#endif
       // Detach from BUS
       IoDetachDevice(devExt->nextDevObj);
       // Delete device object
@@ -152,9 +161,9 @@ OrbEnumDispatchPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
   if (devExt->Flags) 
     {
       // Call PDO handler
-      return OrbPdoPnp(devObj, Irp);
+      return OrbPdoPnp((PPDO_EXTENSION) devExt, Irp);
     } else {
       // Call FDO handler
-      return OrbFdoPnp(devObj, Irp);
+      return OrbFdoPnp(devExt, Irp);
     }
 }

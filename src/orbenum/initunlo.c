@@ -30,7 +30,7 @@ DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath)
       DriverObject->MajorFunction[i] = OrbEnumDispatch;
     }
   DriverObject->DriverUnload			= OrbEnumUnload;
-  DriverObject->MajorFunction[IRP_MJ_PNP]		= OrbEnumDispatchPnp;
+  DriverObject->MajorFunction[IRP_MJ_PNP]	= OrbEnumDispatchPnp;
   DriverObject->MajorFunction[IRP_MJ_POWER]	= OrbEnumDispatchPower;
   DriverObject->DriverExtension->AddDevice	= OrbEnumAddDevice;
 
