@@ -321,7 +321,8 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 	packet = (PHID_XFER_PACKET) Irp->UserBuffer;
 	reportId = packet->reportId;
 	// Get pointers & packet length
-	featureData = curveData = packet->reportBuffer;
+	featureData = &(((PHIDSPORB_FEATURE_PACKET)(packet->reportBuffer))->feature_data );
+	curveData =  &(((PHIDSPORB_SENSITIVITY_CURVE_PACKET)( packet->reportBuffer ))->curve);
 	len = packet->reportBufferLen;
 	DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): packet rep %p repid %d len %d\n", featureData, (ULONG) reportId, len));
 	// Check if report ID is correct
