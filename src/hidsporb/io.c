@@ -2,7 +2,12 @@
 // io.c
 //
 
+#ifndef HIDSPORB_H
 #include "hidsporb.h"
+#endif
+#ifndef ORBPACKET_H
+#include "orbpacket.h"
+#endif
 
 #ifndef	KeReadStateEvent
 NTKERNELAPI

@@ -6,55 +6,60 @@
 #ifndef SORBINC_H
 #include "sorbinc.h"
 #endif
-#ifndef ORBPACKET_H
-#include "orbpacket.h"
+#ifndef BALLPACKET_H
+#include "ballpacket.h"
 #endif
 
 // Packet length stuff
 // Todo: add other packet types (query, etc)
 USHORT OrbPacketLen[] = {
 	0, 	// XXX
-	51,	// Reset
-	12,	// Ball data
-	5,	// Button data
-	4,	// Error
-	3,	// Null region
-	1	// Term
+	15,     // displacement packet
+	3,      // button/key packet
+        3,      // 4k advanced button/key packet
+        3,      // communications mode packet
+        3,      // sensitization mode packet
+        4,      // movement mode packet
+        2,      // null region packet
+        5,      // update rate packet
+        61,     // reset packet
+        7,      // error packet
+        13,     // zero packet
 };
 
 // Forward declaration of several functions internal to this 
 // unit
 
 VOID
-SOrbXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length);
+SBallXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length);
 
 VOID
-SOrbParsePacket(IN PORB_DATA orbData);
+SBallParsePacket(IN PORB_DATA orbData);
 
 VOID
-SOrbParseReset(IN PORB_DATA orbData);
+SBallParseReset(IN PORB_DATA orbData);
 
 VOID
-SOrbParseBallData(IN PORB_DATA orbData);
+SBallParseBallData(IN PORB_DATA orbData);
 
 VOID
-SOrbParseButtonData(IN PORB_DATA orbData);
+SBallParseButtonData(IN PORB_DATA orbData);
 
 VOID
-SOrbParseError(IN PORB_DATA orbData);
+SBallParseError(IN PORB_DATA orbData);
 
 VOID
-SOrbParseNullRegion(IN PORB_DATA orbData);
+SBallParseNullRegion(IN PORB_DATA orbData);
 
 VOID
-SOrbParseTerm(IN PORB_DATA orbData);
+SBallParseTerm(IN PORB_DATA orbData);
 
 
 
 // This function tries to detect ORB and must return STATUS_SUCCESS
 // if SpaceORB is detected, or STATUS_NO_SUCH_DEVICE if not.
 NTSTATUS
-SOrbDetect(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP detectIrp)
+SBallDetect(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP detectIrp)
 {
 	// for now, we don't do any detection
 	// will write this later
@@ -66,10 +71,10 @@ SOrbDetect(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP detectIrp)
 	return STATUS_SUCCESS;
 }
 
-// This function tries to initialize Space ORB, rules are the same as with
-// SOrbDetect().
+// This function tries to initialize SpaceBall 2003/3003/4000 series;
+// rules are the same as with SBallDetect().
 NTSTATUS
-SOrbInit(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData,
+SBallInit(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData,
 	 IN PIRP initIrp, PORB_PARSE_PACKET_FUNC parsePacketFunc,
 	 IN PVOID parseContext)
 {
@@ -79,23 +84,23 @@ SOrbInit(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData,
 	status = OrbInitComPort(serObj);
 	// fail if we coudn't do it
 	if (!NT_SUCCESS(status)) {
-		DbgOut(ORB_DBG_IO, ("SOrbInit(): COM port init failed, status %x\n", status));
+		DbgOut(ORB_DBG_IO, ("SBallInit(): COM port init failed, status %x\n", status));
 		goto failed;
 	}
 	// Set up callback routines
-	orbData->parseCharFunc = SOrbParseChar;
+	orbData->parseCharFunc = SBallParseChar;
 	orbData->parsePacketFunc = parsePacketFunc;
 	orbData->parsePacketContext = parseContext;
 	status = STATUS_SUCCESS;
 failed:
-	DbgOut(ORB_DBG_DETECT | ORB_DBG_PARSE, ("SOrbInit(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_DETECT | ORB_DBG_SBALL, ("SBallInit(): exit, status %x\n", status));
 
 	return status;
 }
 
 // This function cleans up everything
 NTSTATUS
-SOrbCleanup(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP cleanupIrp)
+SBallCleanup(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP cleanupIrp)
 {
 	// Initialize fields
 	orbData->parseCharFunc = NULL;
@@ -110,33 +115,40 @@ SOrbCleanup(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP cleanupIrp)
 
 // Parse character. Parse packet if complete
 VOID
-SOrbParseChar(IN PORB_DATA orbData, IN UCHAR c)
+SBallParseChar(IN PORB_DATA orbData, IN UCHAR c)
 {
 	// Clear buffer if full
 	if (orbData->bufferCursor >= (ORB_PACKET_BUFFER_LENGTH - 1)) {
 		OrbClearBuffer(orbData, ORB_UNKNOWN_PACKET);
 	}
-	DbgOut( ORB_DBG_PARSE, ( "Parsing 0x%x", c ));
+	DbgOut( ORB_DBG_SBALL, ( "Parsing 0x%x", c ));
 	// Initialize packet type according to current char
 	switch (c) {
-	case 'R':
-		OrbClearBuffer(orbData, ORB_RESET_PACKET);
-		break;
 	case 'D':
-		OrbClearBuffer(orbData, ORB_BALL_DATA_PACKET);
-		break;
-	case 'K':
-		OrbClearBuffer(orbData, ORB_BUTTON_DATA_PACKET);
-		break;
+	  OrbClearBuffer(orbData, BALL_DISPLACEMENT_PACKET);
+	  break;
+	case 'K' :
+	  OrbClearBuffer(orbData, BALL_BUTTON_KEY_PACKET);
+	  break;
+	case '.' :
+	  OrbClearBuffer(orbData, BALL_ADVANCED_BUTTON_PACKET);
+	  break;
+	case '@':
+	  OrbClearBuffer(orbData, BALL_RESET_PACKET);
+	  break;
 	case 'E':
-		OrbClearBuffer(orbData, ORB_ERROR_PACKET);
-		break;
-	case 'N':
-		OrbClearBuffer(orbData, ORB_NULL_REGION_PACKET);
-		break;
-	case '\0x0d':
-		OrbClearBuffer(orbData, ORB_TERM_PACKET);
-		break;
+	  OrbClearBuffer(orbData, BALL_ERROR_PACKET);
+	  break;
+	//eat all of the following packet types
+	case 'Z': //zero packet
+	case 'C': //comm mode packet
+	case 'F': //sensitization packet
+	case 'M': //movement mode packet
+	case 'N': //null region packet
+	case 'P': //update rate packet
+	default:
+	  OrbClearBuffer(orbData, ORB_UNKNOWN_PACKET);
+	  break;
 	}
 	// We don't care about unknown packets
 	if (orbData->currPacketType == ORB_UNKNOWN_PACKET) {
@@ -148,13 +160,13 @@ SOrbParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	// See if packet is complete
 	if (orbData->bufferCursor == OrbPacketLen[orbData->currPacketType]) {
 		// Parse packet
-		SOrbParsePacket(orbData);
+		SBallParsePacket(orbData);
 	}
 }
 
 // Uncrypt packet contents
 VOID
-SOrbXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length)
+SBallXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length)
 {
 	ULONG i;
 	PCHAR strXor = "D.SpaceWare";
@@ -168,14 +180,14 @@ SOrbXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length)
 	}
 }
 
-static VOID (*SOrbFuncs[])(IN PORB_DATA orbData) = {
+static VOID (*SBallFuncs[])(IN PORB_DATA orbData) = {
 	NULL, // XXX todo
-	SOrbParseReset,
-	SOrbParseBallData,
-	SOrbParseButtonData,
-	SOrbParseError,
-	SOrbParseNullRegion,
-	SOrbParseTerm
+	SBallParseReset,
+	SBallParseBallData,
+	SBallParseButtonData,
+	SBallParseError,
+	SBallParseNullRegion,
+	SBallParseTerm
 };
 
 PCHAR pktStr[] = {
@@ -190,40 +202,40 @@ PCHAR pktStr[] = {
 
 // Parse packet
 VOID
-SOrbParsePacket(IN PORB_DATA orbData)
+SBallParsePacket(IN PORB_DATA orbData)
 {
 	USHORT pktType;
 
 	// Determine packet type
 	pktType = orbData->currPacketType;
 	if (pktType < (sizeof(pktStr)/sizeof(pktStr[0]))) {
-		DbgOut(ORB_DBG_PARSE, ("SOrbParsePacket(): %s packet, len %d", pktStr[pktType], orbData->bufferCursor));
+		DbgOut(ORB_DBG_SBALL, ("SBallParsePacket(): %s packet, len %d", pktStr[pktType], orbData->bufferCursor));
 	}
 	// Update packets stat
 	orbData->numPackets[orbData->currPacketType]++;
 	// Call appropriate function
-	(*SOrbFuncs[pktType])(orbData);
+	(*SBallFuncs[pktType])(orbData);
 }
 
 // Simple
 VOID
-SOrbParseReset(IN PORB_DATA orbData)
+SBallParseReset(IN PORB_DATA orbData)
 {
-        DbgOut( ORB_DBG_PARSE, ("parsing reset packet" ) );
+        DbgOut( ORB_DBG_SBALL, ("parsing reset packet" ) );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
 
 // Parse ball data packet
 VOID
-SOrbParseBallData(IN PORB_DATA orbData)
+SBallParseBallData(IN PORB_DATA orbData)
 {
 	LONG tx, ty, tz, rx, ry, rz;
 	PUCHAR pch;
 
 	pch = orbData->packetBuffer;
 	// Xor packet
-	SOrbXorPacket(pch, ORB_BALL_DATA_PACKET, orbData->bufferCursor);
+	SBallXorPacket(pch, ORB_BALL_DATA_PACKET, orbData->bufferCursor);
 	// note that this starts with buffer[2], which means we're
 	// ignoring the new copy of the button data for now
 	tx = ((pch[2] & 0x7F) << 3) | ((pch[3] & 0x70) >> 4);
@@ -249,7 +261,7 @@ SOrbParseBallData(IN PORB_DATA orbData)
 
 // Parse button packet
 VOID
-SOrbParseButtonData(IN PORB_DATA orbData)
+SBallParseButtonData(IN PORB_DATA orbData)
 {
 	UCHAR buttons;
 	PUCHAR buffer;
@@ -257,8 +269,8 @@ SOrbParseButtonData(IN PORB_DATA orbData)
 	buffer = orbData->packetBuffer;
 	// Get buttons
 	buttons = buffer[2];
-	DbgOut( ORB_DBG_PARSE, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
-	DbgOut(ORB_DBG_PARSE, ("SOrbParseButtonData(): buttons %x", (ULONG) buttons));
+	DbgOut( ORB_DBG_SBALL, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
+	DbgOut(ORB_DBG_SBALL, ("SBallParseButtonData(): buttons %x", (ULONG) buttons));
 	// Update buttons
 	orbData->buttons[0] = buttons & 0x01;
 	orbData->buttons[1] = buttons & 0x02;
@@ -274,7 +286,7 @@ SOrbParseButtonData(IN PORB_DATA orbData)
 // Parse error packet
 // todo: maybe we reset orb here???
 VOID
-SOrbParseError(IN PORB_DATA orbData)
+SBallParseError(IN PORB_DATA orbData)
 {
 	BOOLEAN brownout, checksum, hardflt;
 	PUCHAR buffer;
@@ -284,25 +296,25 @@ SOrbParseError(IN PORB_DATA orbData)
 	hardflt = (buffer[1] & 1) != 0;
 	checksum = (buffer[1] & 2) != 0;
 	brownout = (buffer[1] & 4) != 0;
-	DbgOut(ORB_DBG_PARSE, ("SOrbParseError(): hardflt %d checksum %d brownout %d\n", hardflt, checksum, brownout));
+	DbgOut(ORB_DBG_SBALL, ("SBallParseError(): hardflt %d checksum %d brownout %d\n", hardflt, checksum, brownout));
 	// Call appropriate function
 	OrbParseCallFunc(orbData);
 }
 
 // Parse null region packet
 VOID
-SOrbParseNullRegion(IN PORB_DATA orbData)
+SBallParseNullRegion(IN PORB_DATA orbData)
 {       
-        DbgOut( ORB_DBG_PARSE, ("Parsing null region packet" ));
+        DbgOut( ORB_DBG_SBALL, ("Parsing null region packet" ));
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }
 
 // Parse terminator packet
 VOID
-SOrbParseTerm(IN PORB_DATA orbData)
+SBallParseTerm(IN PORB_DATA orbData)
 {
-  DbgOut( ORB_DBG_PARSE, ("Parsing Term packet")  );
+  DbgOut( ORB_DBG_SBALL, ("Parsing Term packet")  );
 	// Call callback function
 	OrbParseCallFunc(orbData);
 }

@@ -1,3 +1,6 @@
+#ifndef HIDSPORB_H
+#define HIDSPORB_H
+
 #include <stddef.h>
 #include <memory.h>
 #include <wdm.h>
@@ -9,13 +12,12 @@
 #include <wdmguid.h>
 #include <ntddser.h>
 
-#ifndef	_HIDSPORB_H_
-#define _HIDSPORB_H_
-
 #define HIDSPORB_TAG	'brOH'
 
 #include "orb.h"
-#include "packet.h"
+#ifndef ORBDATA_H
+#include "orbdata.h"
+#endif
 
 // Our device extension
 typedef struct _DEVICE_EXTENSION {

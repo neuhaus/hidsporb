@@ -1,3 +1,4 @@
+#if 0
 //
 // settings.c
 //
@@ -5,15 +6,13 @@
 
 #include "hidsporb.h"
 
-// Disabled while merging
-#if 0
 NTSTATUS
-HSO_append_unicode_strings( PUNICODE_STRING target,
+OrbAppendUnicodeStrings( PUNICODE_STRING target,
 			    PUNICODE_STRING source,
 			    WCHAR* to_append )
 {
   NTSTATUS status = STATUS_SUCCESS;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("Entering append_unicode_string" ));
   if ( !source || !to_append )
     {
@@ -26,7 +25,7 @@ HSO_append_unicode_strings( PUNICODE_STRING target,
 	(wcslen( to_append ) * sizeof( WCHAR )) + sizeof (UNICODE_NULL );
       target->Buffer = ExAllocatePoolWithTag( PagedPool,
 					      target->MaximumLength,
-					      HSO_POOL_TAG );
+					      HIDSPORB_TAG );
       if ( !target->Buffer )
 	{
 	  status = STATUS_UNSUCCESSFUL;
@@ -38,37 +37,34 @@ HSO_append_unicode_strings( PUNICODE_STRING target,
 	  RtlAppendUnicodeToString( target, to_append );
 	}
     }
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT,
-		"exiting append_unicode_string", status );
   return status;
 }
 
 void
-HSO_store_registry_path( PDRIVER_OBJECT driver_object,
+OrbStoreRegistryPath( PDRIVER_OBJECT driver_object,
 			 PUNICODE_STRING registry_path )
 {
   PUNICODE_STRING registry_path_copy;
   NTSTATUS status;
   PWCHAR have_changed_string = L"settings_have_changed";
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		( "Entering store_registry_path; path= %ws", registry_path->Buffer ));
 
-  status = HSO_append_unicode_strings( &(Global.registry_base), 
+  status = OrbAppendUnicodeStrings( &(Global.registry_base), 
 				       registry_path, L"" );
   if ( NT_SUCCESS(status) )
     {
-      status = HSO_append_unicode_strings( &(Global.settings_path), 
+      status = OrbAppendUnicodeStrings( &(Global.settings_path), 
 					   &Global.registry_base,
 					   L"\\Settings" );
     }
 
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, "Exiting store_registry_path", status );
 }
 
 
 void
-HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object, 
+OrbRetrieveSettingsFromRegistry( PDEVICE_OBJECT device_object, 
 				     PDEVICE_EXTENSION device_extension,
 				     HANDLE handle )
 {
@@ -150,12 +146,12 @@ HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object,
   USHORT queries_plus_one = 31;
   int i;
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		( "Entering retrieve_settings_from_registry" ));
 
   settings = ExAllocatePoolWithTag( PagedPool,
 				    sizeof( RTL_QUERY_REGISTRY_TABLE ) * queries_plus_one,
-				    HSO_POOL_TAG );
+				    HIDSPORB_TAG );
   if ( !settings )
     {
       status = STATUS_UNSUCCESSFUL;
@@ -243,7 +239,7 @@ HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object,
 
       if ( Global.settings_path.Buffer ) //NT_SUCCESS( status ) )
 	{
-	  HSO_DBGPRINT( FILE_SETTINGS | HSO_BABBLE,
+	  DbgOut( ORB_DBG_SET,
 			("Retrieving settings with path: %ws", Global.settings_path.Buffer ));
 	  
 	  /* now make the actual query */
@@ -257,7 +253,7 @@ HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object,
       if ( !NT_SUCCESS( status ) )
 	/* there's been a problem; try querying using the handle */
 	{
-	  HSO_DBGPRINT( FILE_SETTINGS | HSO_ERROR,
+	  DbgOut( ORB_DBG_SET,
 			( "Could not query registry settings settings_path"));
 	  if ( handle )
 	    {
@@ -292,18 +288,18 @@ HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object,
      data to the device extension */
   for ( i = 0; i < 6; ++i )
     {
-      device_extension->axis_map[ i ] = axes[ i ];
-      device_extension->sensitivities[ i ] = sensitivities[ i ];
-      device_extension->polarities[ i ] = polarities[ i ];
-      device_extension->gains[ i ] = gains[ i ];
+      device_extension->orbData.AxisMap[ i ] = axes[ i ];
+      device_extension->orbData.sensitivities[ i ] = sensitivities[ i ];
+      device_extension->orbData.polarities[ i ] = polarities[ i ];
+      device_extension->orbData.gains[ i ] = gains[ i ];
     }
-  device_extension->use_chording = ( use_chording != 0 );
-  HSO_set_null_region( device_object, null_region );
-  device_extension->precision_sensitivity = precision_sensitivity;
-  device_extension->precision_gain = precision_gain;
-  device_extension->precision_button_type = precision_button_type;
-  device_extension->precision_button_index = precision_button_index;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_BABBLE,
+  device_extension->orbData.use_chording = ( use_chording != 0 );
+  OrbSetNullRegion( device_object, null_region );
+  device_extension->orbData.precision_sensitivity = precision_sensitivity;
+  device_extension->orbData.precision_gain = precision_gain;
+  device_extension->orbData.precision_button_type = precision_button_type;
+  device_extension->orbData.precision_button_index = precision_button_index;
+  DbgOut( ORB_DBG_SET,
 		( "Axis map: %d/%d/%d/%d/%d/%d, use_chording = %d",
 		  axes[ 0 ], axes[ 1 ], axes[ 2 ], 
 		  axes[ 3 ], axes[ 4 ], axes[ 5 ],
@@ -315,11 +311,11 @@ HSO_retrieve_settings_from_registry( PDEVICE_OBJECT device_object,
     }
   // we save settings here so that orbcontrol will work on initial
   // installation
-  HSO_save_settings( device_extension );
+  OrbSaveSettingsToRegistry( device_extension );
 }
 
 NTSTATUS 
-HSO_write_registry_long( PWCHAR key, LONG value )
+OrbWriteRegistryLong( PWCHAR key, LONG value )
 {
   NTSTATUS status;
   if ( Global.settings_path.Buffer )
@@ -340,7 +336,7 @@ HSO_write_registry_long( PWCHAR key, LONG value )
 
 // Todo: add checks for validness
 NTSTATUS
-OrbSetAxisMapping(PDEVICE_EXTENSION devExt, LONG logical_axis_number, LONG physical_axis_number)
+OrbSetAxisMapping(PDEVICE_EXTENSION device_extension, LONG logical_axis_number, LONG physical_axis_number)
 {
 	NTSTATUS status = STATUS_SUCCESS;
 	WCHAR* axis_setting_names[] = { L"logical_axis_0",
@@ -351,22 +347,19 @@ OrbSetAxisMapping(PDEVICE_EXTENSION devExt, LONG logical_axis_number, LONG physi
 					L"logical_axis_5" };
 
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_axis_mapping"));
 		       
   /* first things first--set this in the device extension */
-  device_extension->axis_map[ logical_axis_number ] = physical_axis_number;
+  device_extension->orbData.AxisMap[ logical_axis_number ] = physical_axis_number;
   /* now write it in the registry */
-  status = HSO_write_registry_long( axis_setting_names[ logical_axis_number ],
+  status = OrbWriteRegistryLong( axis_setting_names[ logical_axis_number ],
 				    physical_axis_number );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		"exiting set_axis_mapping", 
-		status );
   return status;
 }
 		
 NTSTATUS
-HSO_set_sensitivity( PDEVICE_EXTENSION device_extension,
+OrbSetSensitivity( PDEVICE_EXTENSION device_extension,
 		      LONG logical_axis_number,
 		      LONG sensitivity )
 {
@@ -380,21 +373,18 @@ HSO_set_sensitivity( PDEVICE_EXTENSION device_extension,
 				 L"sensitivity_5" };
 
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_sensitivity"));
 		       
   /* first things first--set this in the device extension */
-  device_extension->sensitivities[ logical_axis_number ] = sensitivity;
-  status = HSO_write_registry_long( axis_setting_names[ logical_axis_number ],
+  device_extension->orbData.sensitivities[ logical_axis_number ] = sensitivity;
+  status = OrbWriteRegistryLong( axis_setting_names[ logical_axis_number ],
 				    sensitivity );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		"exiting set_sensitivity", 
-		status );
   return status;
 }
 
 NTSTATUS
-HSO_set_polarity( PDEVICE_EXTENSION device_extension,
+OrbSetPolarity( PDEVICE_EXTENSION device_extension,
 		  LONG logical_axis_number,
 		  LONG polarity )
 {
@@ -408,21 +398,18 @@ HSO_set_polarity( PDEVICE_EXTENSION device_extension,
 				 L"polarity_5" };
 
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_polarity"));
 		       
   /* first things first--set this in the device extension */
-  device_extension->polarities[ logical_axis_number ] = polarity;
-  status = HSO_write_registry_long( axis_setting_names[ logical_axis_number ],
+  device_extension->orbData.polarities[ logical_axis_number ] = polarity;
+  status = OrbWriteRegistryLong( axis_setting_names[ logical_axis_number ],
 				    polarity );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		"exiting set_polarity", 
-		status );
   return status;
 }
 
 NTSTATUS
-HSO_set_gain( PDEVICE_EXTENSION device_extension,
+OrbSetGain( PDEVICE_EXTENSION device_extension,
 		  LONG logical_axis_number,
 		  LONG gain )
 {
@@ -436,86 +423,74 @@ HSO_set_gain( PDEVICE_EXTENSION device_extension,
 				 L"gain_5" };
 
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_gain"));
 		       
   /* first things first--set this in the device extension */
-  device_extension->gains[ logical_axis_number ] = gain;
+  device_extension->orbData.gains[ logical_axis_number ] = gain;
   /* now write it in the registry */
-  status = HSO_write_registry_long( axis_setting_names[ logical_axis_number ],
+  status = OrbWriteRegistryLong( axis_setting_names[ logical_axis_number ],
 				    gain );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		"exiting set_gain", 
-		status );
   return status;
 }
 
 NTSTATUS
-HSO_set_precision_sensitivity( PDEVICE_EXTENSION device_extension,
+OrbSetPrecisionSensitivity( PDEVICE_EXTENSION device_extension,
 			       LONG sensitivity )
 {
   NTSTATUS status = STATUS_SUCCESS;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_precision_sensitivity"));
-  device_extension->precision_sensitivity = sensitivity;
-  status = HSO_write_registry_long( L"precision_sensitivity", sensitivity );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT,
-		"exiting set_precision_sensitivity",
-		status );
+  device_extension->orbData.precision_sensitivity = sensitivity;
+  status = OrbWriteRegistryLong( L"precision_sensitivity", sensitivity );
   return status;
 }
 
 NTSTATUS
-HSO_set_precision_gain( PDEVICE_EXTENSION device_extension,
+OrbSetPrecisionGain( PDEVICE_EXTENSION device_extension,
 			LONG gain )
 {
   NTSTATUS status = STATUS_SUCCESS;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_precision_gain"));
-  device_extension->precision_gain = gain;
-  status = HSO_write_registry_long( L"precision_gain", gain );
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT,
-		"exiting set_precision_gain",
-		status );
+  device_extension->orbData.precision_gain = gain;
+  status = OrbWriteRegistryLong( L"precision_gain", gain );
   return status;
 }
 
 NTSTATUS
-HSO_set_precision_button( PDEVICE_EXTENSION device_extension,
+OrbSetPrecisionButton( PDEVICE_EXTENSION device_extension,
 			  LONG button_type,
 			  LONG button_index )
 {
   NTSTATUS status = STATUS_SUCCESS;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_precision_button"));
-  device_extension->precision_button_type = button_type;
-  device_extension->precision_button_index = button_index;
-  status = HSO_write_registry_long( L"precision_button_type", button_type );
+  device_extension->orbData.precision_button_type = button_type;
+  device_extension->orbData.precision_button_index = button_index;
+  status = OrbWriteRegistryLong( L"precision_button_type", button_type );
   if ( NT_SUCCESS( status ) )
     {
-      status = HSO_write_registry_long( L"precision_button_index", button_index );
+      status = OrbWriteRegistryLong( L"precision_button_index", button_index );
     }
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT,
-		"exiting set_precision_button",
-		status );
   return status;
 }
 
 
 NTSTATUS
-HSO_set_chording( PDEVICE_EXTENSION device_extension,
+OrbSetChording( PDEVICE_EXTENSION device_extension,
 		  BOOLEAN use_chording )
 {
 /*   UNICODE_STRING settings_path; */
   NTSTATUS status = STATUS_SUCCESS;
   LONG use_chording_long;
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_use_chording"));
   
 
   /* first things first--set this in the device extension */
   use_chording_long = use_chording ? 1 : 0;
-  device_extension->use_chording = use_chording;
+  device_extension->orbData.use_chording = use_chording;
 
   /* now write it in the registry */
 /*   HSO_get_registry_settings_string( device_extension, &settings_path ); */
@@ -532,90 +507,57 @@ HSO_set_chording( PDEVICE_EXTENSION device_extension,
     {
       status = STATUS_UNSUCCESSFUL;
     }
-  HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		"exiting set_use_chording", 
-		status );
   return status;
   
 }
 			 
   
 NTSTATUS
-HSO_save_settings( PDEVICE_EXTENSION device_extension )
+OrbSaveSettingsToRegistry( PDEVICE_EXTENSION device_extension )
 {
   NTSTATUS status = STATUS_SUCCESS;
   int i;
-  for ( i = 0; i < MAX_LOGICAL_AXES; ++i )
+  for ( i = 0; i < ORB_NUM_AXES; ++i )
     {
-      HSO_set_axis_mapping( device_extension, 
+      OrbSetAxisMapping( device_extension, 
 			    i,
-			    device_extension->axis_map[ i ] );
-      HSO_set_sensitivity( device_extension, i,
-			   device_extension->sensitivities[ i ] );
-      HSO_set_polarity( device_extension, i, 
-			device_extension->polarities[ i ] );
-      HSO_set_gain( device_extension, i, 
-		    device_extension->gains[ i ] );
+			    device_extension->orbData.AxisMap[ i ] );
+      OrbSetSensitivity( device_extension, i,
+			   device_extension->orbData.sensitivities[ i ] );
+      OrbSetPolarity( device_extension, i, 
+			device_extension->orbData.polarities[ i ] );
+      OrbSetGain( device_extension, i, 
+		    device_extension->orbData.gains[ i ] );
     }
-  HSO_set_chording( device_extension, device_extension->use_chording );
-  HSO_set_precision_sensitivity( device_extension, device_extension->precision_sensitivity );
-  HSO_set_precision_gain( device_extension, device_extension->precision_gain );
-  HSO_set_precision_button( device_extension, 
-			    device_extension->precision_button_type,
-			    device_extension->precision_button_index );
+  OrbSetChording( device_extension, 
+		  device_extension->orbData.use_chording );
+  OrbSetPrecisionSensitivity( device_extension, 
+			      device_extension->orbData.precision_sensitivity );
+  OrbSetPrecisionGain( device_extension, 
+		       device_extension->orbData.precision_gain );
+  OrbSetPrecisionButton( device_extension, 
+			 device_extension->orbData.precision_button_type,
+			 device_extension->orbData.precision_button_index );
   return status;
 }
 	
 
-#define SETTINGS_HAVE_CHANGED_KEY L"settings_have_changed"
-#define MAX_POLLS_BETWEEN_SETTINGS_CHECKS 30
-
-BOOLEAN
-HSO_settings_have_changed( void )
-{
-  //checks the "settings have changed" flag for a nonzero indication
-  NTSTATUS status = STATUS_SUCCESS;
-  RTL_QUERY_REGISTRY_TABLE query_table[2];
-  LONG settings_have_changed;
-  LONG default_has_changed = 0;
-  RtlZeroMemory( &query_table, sizeof( RTL_QUERY_REGISTRY_TABLE )*2 );
-  query_table[0].Flags = RTL_QUERY_REGISTRY_DIRECT;
-  query_table[0].Name = SETTINGS_HAVE_CHANGED_KEY;
-  query_table[0].EntryContext = &settings_have_changed;
-  query_table[0].DefaultType = REG_DWORD;
-  query_table[0].DefaultData = &default_has_changed;
-  query_table[0].DefaultLength = sizeof( LONG );
-  status = RtlQueryRegistryValues( RTL_REGISTRY_ABSOLUTE | RTL_REGISTRY_OPTIONAL,
-				   Global.settings_path.Buffer,
-				   query_table,
-				   NULL,
-				   NULL );
-  if ( NT_SUCCESS( status ) )
-    {
-      return ( settings_have_changed != 0 );
-    }
-  else
-    {
-      return FALSE;
-    }
-}
-		 
 
 NTSTATUS
-HSO_set_null_region( PDEVICE_OBJECT device_object,
+OrbSetNullRegion( PDEVICE_OBJECT device_object,
 		     int new_null_region )
 {
   NTSTATUS status = STATUS_SUCCESS;
   LONG null_long;
 
-  HSO_DBGPRINT( FILE_SETTINGS | HSO_FENTRY,
+  DbgOut( ORB_DBG_SET ,
 		("entering set_null_region"));
   //if it's in range (7 bits: 0-128) set it and record.
   if ( ( 0 <= new_null_region ) && ( new_null_region < 129 ) )
     {
       //set a pending null region...
-      GET_MINIDRIVER_DEVICE_EXTENSION( device_object )->null_region = new_null_region;
-      GET_MINIDRIVER_DEVICE_EXTENSION( device_object )->new_null_region_pending = TRUE;
+      GET_DEV_EXT( device_object )->orbData.null_region = new_null_region;
+      GET_DEV_EXT( device_object )->orbData.new_null_region_pending = TRUE;
       //then record the data
       if ( Global.settings_path.Buffer )
 	{
@@ -631,9 +573,6 @@ HSO_set_null_region( PDEVICE_OBJECT device_object,
 	{
 	  status = STATUS_UNSUCCESSFUL;
 	}
-      HSO_EXITPROC( FILE_SETTINGS | HSO_FEXIT, 
-		    "exiting set_null_region", 
-		    status );
     }
   else
     {
@@ -643,4 +582,4 @@ HSO_set_null_region( PDEVICE_OBJECT device_object,
      
 }
 
-#endif	// Disabled while merging
+#endif

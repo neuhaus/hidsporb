@@ -33,6 +33,8 @@ PnpToString(UCHAR MinorFunction);
 #define	ORB_DBG_IRPQ	512
 //
 #define	ORB_DBG_DISPATCH	1024
+// SpaceBall-specific parsing
+#define ORB_DBG_SBALL  2048
 //
 #define	ORB_DBG_ALL	(ULONG) (~0L)
 
