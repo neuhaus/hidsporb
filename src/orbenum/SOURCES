@@ -1,0 +1,11 @@
+# The sources for the ORB minibus enumerator driver
+
+TARGETNAME=orbenum
+TARGETPATH=obj
+TARGETTYPE=DRIVER
+TARGETLIBS=$(DDK_LIB_PATH)\ntoskrnl.lib
+
+INCLUDES=..\
+
+SOURCES=initunlo.c pnp.c power.c wmi.c dispatch.c fdo.c pdo.c misc.c \
+	detect.c notify.c lock.c serial.c orbio.c debug.c orbenum.rc

@@ -1,0 +1,15 @@
+#include <windows.h>
+
+#include <ntverp.h>
+
+#define	VER_FILETYPE			VFT_DRV
+#define	VER_FILESUBTYPE			VFT2_DRV_SYSTEM
+#define VER_FILEDESCRIPTION_STR		"ORB minibus enumerator driver"
+#define VER_INTERNALNAME_STR		"orbenum.sys"
+#define	VER_PRODUCTNAME_STR		"ORB minibus enumetator driver"
+#define	VER_LEGALCOPYRIGHT_STR		"Copyright (c) Yuri Chebotarev 2002"
+#define	VER_PRODUCTVERSION_STR		"1.00 alpha"
+#define	VER_PRODUCTVERSION		1,00,00,00
+#define	VER_COMPANYNAME_STR		"Yuri Chebotarev"
+
+#include "common.ver"

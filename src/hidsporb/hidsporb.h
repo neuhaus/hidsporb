@@ -1,125 +1,144 @@
-/*
+#include <stddef.h>
+#include <memory.h>
+#include <wdm.h>
+#include <hidtoken.h>
+#include <hidusage.h>
+#include <hidport.h>
 
-Copyright (c) 2001, Victor B. Putz
-All rights reserved.
+#define	DEFINE_GUID
+#include <initguid.h>
+#include <wdmguid.h>
+#include <ntddser.h>
 
-Redistribution and use in source and binary forms, with or without
-modification, are permitted provided that the following conditions are
-met:
+#ifndef	_HIDSPORB_H_
+#define _HIDSPORB_H_
 
-* Redistributions of source code must retain the above copyright notice,
-  this list of conditions and the following disclaimer.  
+#define HIDSPORB_TAG	'brOH'
 
-* Redistributions in binary form must reproduce the above copyright
-  notice, this list of conditions and the following disclaimer in the
-  documentation and/or other materials provided with the distribution.
+#include "packet.h"
 
-* Neither the name of the project nor the names of its
-  contributors may be used to endorse or promote products derived from
-  this software without specific prior written permission.
+#define	ORB_NUM_AXES		6
+#define	ORB_NUM_PHYS_BUTTONS	7
 
-THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
-"AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
-LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
-A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
-OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
-SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
-LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
-DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
-THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
-(INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
-OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+// Our bus FDO device extension
+typedef struct _DEVICE_EXTENSION {
+	PDEVICE_OBJECT	devObj; 	// Our device object
+	PDRIVER_OBJECT	DriverObject;	// Driver object
+	BOOLEAN		Started;	// Is device started?
+	BOOLEAN		Removed;	// Is device being removed?
+	BOOLEAN		Filler[2];	// bug fix
+	PDEVICE_OBJECT	nextDevObj;	// PDO that BUS gave to us
+	IO_REMOVE_LOCK	RemoveLock;	// Remove lock
+	// Buffers used for I/O
+	PIRP		readIrp;	// Irp used for I/O
+	ULONG		currPacketType; // Current packet type
+	CHAR		packetBuffer[ORB_PACKET_BUFFER_LENGTH]; // packet buffer
+	USHORT		bufferCursor;	// Current cursor
+	// Thread stuff
+	BOOLEAN		threadStarted;	//
+	KEVENT		threadTermEvent; //
+	KEVENT		threadTerminated; //
+	PVOID		threadObj;	// Thread object
+	// logical mapping stuff
+	// Fields for physical-to-logical control bindings
+	// axis map--for each logical axis, an entry in this map contains the
+	//index of the physical axis to use
+	LONG		Axes[ORB_NUM_AXES];		// Axes
+	ULONG		buttons[ORB_NUM_PHYS_BUTTONS];	// Buttons
+	ULONG		AxisMap[ORB_NUM_AXES];		// Physical/Logical axis map
+	// whether or not to use chording on this device.  If chording
+	// is used, buttons A/B on the orb set up a context for the remaining
+	// four buttons
+	BOOLEAN use_chording;
+	// upcoming null region.  Note that the region is not actually
+	// set in the orb until it's processed during orb_comm, thus the
+	// two elements for "new_null_region_pending" and "null_region"
+	//
+	int null_region;
+  	// sensitivities -- determines the "response curve" used by each axis
+	int sensitivities[ORB_NUM_AXES];
+  	// polarities -- determines "which direction is positive" on each axis
+	int polarities[ORB_NUM_AXES];
+	// gains -- determines "amplification" of each axis
+	int gains[ORB_NUM_AXES];
+	// precision settings--first sensitivity (response curve when
+	// precision button is pressed)
+	int precision_sensitivity;
+	// gain to use when button is pressed
+	int precision_gain;
+	// what button type -- logical or physical -- for precision
+	int precision_button_type;
+	// what button index for precision
+	int precision_button_index;
 
-*/
-#ifndef HIDSPORB_H
-#define HIDSPORB_H
+	BOOLEAN new_null_region_pending;
+	
+	// queue stuff
+	KSPIN_LOCK	readQueueLock;	// Spin lock
+	LIST_ENTRY	readQueueList;	// List
+	ULONG		readsPending;	// Reads pending
+} DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 
-#ifndef HIDSPORB_DEVICE_EXTENSION_H
-#include "hidsporb_device_extension.h"
-#endif
-#include "hidtoken.h"
-#include "hidusage.h"
-#include "hidport.h"
-#ifndef DEBUG_H
-#include "debug.h"
-#endif
+#define HIDSPORB_POLARITY_NEGATIVE	0
+#define HIDSPORB_POLARITY_ZERO		1
+#define HIDSPORB_POLARITY_POSITIVE	2
 
+#define HIDSPORB_BUTTON_TYPE_NONE	0
+#define HIDSPORB_BUTTON_TYPE_PHYSICAL	1
+#define HIDSPORB_BUTTON_TYPE_LOGICAL	2
 
-
-
-
-/* global storage area for hidsporb driver */
-  typedef struct _HIDSPORB_GLOBAL
-  {
-    /* A syncronization for access to list */
-    FAST_MUTEX          mutex;
-    /* Keeps list of all the devices */
-    LIST_ENTRY          device_list_head;
-    /* Lock so that only one port is accessed */
-    KSPIN_LOCK          spin_lock;     
-
-    /* settings strings for registry data */
-    UNICODE_STRING registry_base;
-    UNICODE_STRING settings_path;
-  } HIDSPORB_GLOBAL;
-
-#ifndef HIDSPORB_DEVICE_EXTENSION_H
-#include "hidsporb_device_extension.h"
-#endif
-
-
-extern HIDSPORB_GLOBAL Global;
-
+// initunlo.c
 NTSTATUS
-    DriverEntry
-    (
-    IN PDRIVER_OBJECT  DriverObject,
-    IN PUNICODE_STRING registryPath
-    );
-
-NTSTATUS
-    HSO_create
-    (
-    IN PDEVICE_OBJECT p_device_object,
-    IN PIRP Irp
-    );
-
-NTSTATUS
-    HSO_close
-    (
-    IN PDEVICE_OBJECT p_device_object,
-    IN PIRP Irp
-    );
-
-NTSTATUS
-    HSO_add_device
-    (
-    IN PDRIVER_OBJECT DriverObject,
-    IN PDEVICE_OBJECT p_functional_device_object
-    );
+DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath);
 
 VOID
-    HSO_unload
-    (
-    IN PDRIVER_OBJECT DriverObject
-    );
+OrbUnload(IN PDRIVER_OBJECT DriverObject);
 
 NTSTATUS
-HSO_flush_buffers
-(
- IN PDEVICE_OBJECT p_device_object,
- IN PIRP Irp
- );
-
+OrbAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT fdo);
 
 NTSTATUS
-HSO_start_device(
-		PDEVICE_OBJECT device_object,
-		PDEVICE_EXTENSION device_extension,
-		PIRP Irp,
-		BOOLEAN should_close_on_failure
-		);
+OrbDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp);
 
+NTSTATUS
+OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp);
 
-#endif 
+NTSTATUS 
+OrbSystemControl(IN PDEVICE_OBJECT devObj, IN PIRP Irp);
 
+NTSTATUS
+OrbPnpComplete(IN PDEVICE_OBJECT, IN PIRP, IN PKEVENT);
+
+NTSTATUS
+OrbPnp(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+
+NTSTATUS
+OrbStartDevice(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+
+NTSTATUS
+OrbRemoveDevice(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
+
+#include "serial.h"
+#include "orbio.h"
+#include "misc.h"
+#include "debug.h"
+#include "power.h"
+#include "dispatch.h"
+#include "report.h"
+#include "ioctl.h"
+#include "io.h"
+#include "irpq.h"
+#include "parse.h"
+#include "translat.h"
+#include "charts.h"
+#include "feature.h"
+
+#define HIDSPORB_VENDOR_ID 0x5a8
+#define HIDSPORB_PRODUCT_ID 0x360
+
+//#define	GET_DEV_EXT(fdo)	(((PHID_DEVICE_EXTENSION) (fdo)->DeviceExtension)->MiniDeviceExtension)
+#define GET_DEV_EXT(DO) ((PDEVICE_EXTENSION) (((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->MiniDeviceExtension))
+#define GET_PDO_FROM_EXT(DO) \
+(((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->PhysicalDeviceObject)
+
+#endif

@@ -1,0 +1,59 @@
+[Version]
+;Signature="$WINDOWS NT$"
+Signature="$CHICAGO$"
+Class=Sample
+ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171}
+Provider=%ORB%
+
+[DestinationDirs]
+DefaultDestDir = 12
+
+[ClassInstall32]
+Addreg=OrbenumClassReg
+
+[OrbenumClassReg]
+HKR,,,0,%ClassName%
+HKR,,Icon,,-5
+
+[Manufacturer]
+%ORB%=Orbenum
+
+[SourceDisksFiles]
+orbenum.sys=1
+
+[SourceDisksNames]
+1=%DISK_NAME%,
+
+[Orbenum]
+%Orbenum.DRVDESC%=Orbenum_Inst, *ORBENUM
+;TODO: merge hidsporb.inf & orbenum.inf stuff
+;%SpaceOrb.DRVDESC%=SpaceOrb_Inst, *SPC0360
+
+[Orbenum_Inst.NT]
+CopyFiles=Orbenum.CopyFiles
+AddReg=Orbenum_Inst.AddReg
+
+[Orbenum.CopyFiles]
+orbenum.sys
+
+; No Windows 98 install
+;[Orbenum_Inst.AddReg]
+;HKR,,DevLoader,,*ntkern
+;HKR,,NTMPDriver,,"orbenum.sys"
+
+[Orbenum_Inst.NT.Services]
+AddService=orbenum,0x00000002,Orbenum_Service
+
+[Orbenum_Service]
+DisplayName    = %Orbenum.SVCDESC%
+ServiceType    = 1                  ; SERVICE_KERNEL_DRIVER
+StartType      = 3                  ; SERVICE_DEMAND_START
+ErrorControl   = 1                  ; SERVICE_ERROR_NORMAL
+ServiceBinary  = %12%\orbenum.sys                            
+
+[Strings]
+Orb = "Two guys, Inc."
+ClassName = "ORB bus"
+Orbenum.SVCDESC = "ORB minibus service"
+Orbenum.DRVDESC = "ORB minibus"
+DISK_NAME = "ORB Install Disk"
