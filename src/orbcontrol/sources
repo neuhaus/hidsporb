@@ -21,8 +21,8 @@ USE_MAPSYM=1
 SOURCES= \
 orbcontrol.cpp \
 orb_control.cpp \
-..\validity.c \
-..\charts.c
+.\..\validity.c \
+.\..\charts.c
 
 
 

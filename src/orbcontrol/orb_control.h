@@ -13,7 +13,7 @@ class orb_control_implementation;
 
 class orb_control {
  public:
-  orb_control( void );
+  orb_control( int index );
   ~orb_control( void );
 
  public:
@@ -39,6 +39,7 @@ class orb_control {
 
   //queries
   int is_initialized( void );
+  int index( void );
   int physical_axis_from_logical_axis( int logical_axis );
   int using_chording( void );
   int null_region( void );

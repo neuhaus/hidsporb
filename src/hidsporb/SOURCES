@@ -24,8 +24,8 @@ parse.c \
 sorb.c \
 sball.c \
 translat.c \
-validity.c \
-charts.c \
+..\validity.c \
+..\charts.c \
 irpq.c \
 settings.c \
 debug.c \

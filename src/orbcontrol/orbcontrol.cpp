@@ -36,7 +36,8 @@ void
 show_orb_status( orb_control& control )
 {
       
-  printf( "Control is initialized.  Current state of orb:\n" );
+  printf( "Control is initialized.  Current state of orb %d:\n", 
+	  control.index() );
   printf( "\t   Axis map : %d/%d/%d/%d/%d/%d\n", 
 	  control.physical_axis_from_logical_axis( 0 ),
 	  control.physical_axis_from_logical_axis( 1 ),
@@ -881,7 +882,7 @@ void __cdecl
 main( int arg_count, char** arg_vector )
 {
 
-  orb_control control;
+  orb_control control( 0 );
   if ( control.is_initialized() )
     {
       if ( arg_count < 2 )

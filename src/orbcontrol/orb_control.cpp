@@ -26,6 +26,7 @@ class orb_control_implementation
   GUID hid_guid;
   SP_DEVICE_INTERFACE_DATA first_orb;
   HANDLE orb_handle;
+  int index;
   orb_control::error last_error;
   HIDSPORB_FEATURE_PACKET last_report;
 
@@ -141,6 +142,7 @@ class orb_control_implementation
   {
     HDEVINFO device_info;
     int i = 0;
+    int index_counter = index;
     BOOL continue_enum = TRUE;
     BOOL device_found = FALSE;
 
@@ -151,7 +153,10 @@ class orb_control_implementation
 				      NULL, NULL,
 				      DIGCF_PRESENT | DIGCF_DEVICEINTERFACE);
     first_orb.cbSize = sizeof( first_orb );
-    //right now, we'll just get the first orb we see
+    //loop through the possible objects.  If we find an orb and 
+    //index_counter=0, then this is our orb--otherwise, decrement
+    //the counter and continue
+
     while (continue_enum)
       {
 	device_found = SetupDiEnumDeviceInterfaces( device_info,
@@ -164,8 +169,15 @@ class orb_control_implementation
 	    orb_handle = device_handle( device_info, &first_orb );
 	    if ( handle_represents_orb( orb_handle ) )
 	      {
-		continue_enum = FALSE;
-		is_initialized = TRUE;
+		if ( index_counter == 0 )
+		  {
+		    continue_enum = FALSE;
+		    is_initialized = TRUE;
+		  }
+		else
+		  {
+		    --index_counter;
+		  }
 	      }
 	    else
 	      {
@@ -202,9 +214,10 @@ class orb_control_implementation
     
 };
 
-orb_control::orb_control( void )
+orb_control::orb_control( int index )
 {
   m_pimp = new orb_control_implementation;
+  m_pimp->index = index;
   m_pimp->is_initialized = 0;
   m_pimp->orb_handle = INVALID_HANDLE_VALUE;
   m_pimp->last_error = orb_control::No_error;
@@ -418,6 +431,11 @@ orb_control::is_initialized( void )
   return m_pimp->is_initialized;
 }
 
+int
+orb_control::index( void )
+{
+  return m_pimp->index;
+}
 
 int
 orb_control::physical_axis_from_logical_axis( int axis )
@@ -578,49 +596,49 @@ orb_control::download_sensitivity_curve( int curve_id,
 int
 orb_control::is_valid_axis( int axis )
 {
-  return ::is_valid_axis( axis );
+  return ::OrbIsValidAxis( axis );
 }
  
 int
 orb_control::is_valid_sensitivity( int sensitivity )
 {
-  return ::is_valid_sensitivity( sensitivity );
+  return ::OrbIsValidSensitivity( sensitivity );
 }
 
 int 
 orb_control::is_valid_polarity( int polarity )
 {
-  return ::is_valid_polarity( polarity );
+  return ::OrbIsValidPolarity( polarity );
 }
 
 int
 orb_control::is_valid_gain( int gain )
 {
-  return ::is_valid_gain( gain );
+  return ::OrbIsValidGain( gain );
 }
 
 int
 orb_control::is_valid_button_type( int button_type )
 {
-  return ::is_valid_button_type( button_type );
+  return ::OrbIsValidButtonType( button_type );
 }
 
 int
 orb_control::is_valid_physical_button_index( int button_index ) 
 {
-  return ::is_valid_physical_button_index( button_index );
+  return ::OrbIsValidPhysicalButtonIndex( button_index );
 }
 
 int
 orb_control::is_valid_logical_button_index( int button_index )
 {
-  return ::is_valid_logical_button_index( button_index );
+  return ::OrbIsValidLogicalButtonIndex( button_index );
 }
 
 int 
 orb_control::is_valid_null_region( int region )
 {
-  return ::is_valid_null_region( region );
+  return ::OrbIsValidNullRegion( region );
 }
 
 int
