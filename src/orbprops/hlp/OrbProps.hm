@@ -1,0 +1,21 @@
+ 
+// Commands (ID_* and IDM_*) 
+HIDM_ABOUTBOX                           0x10010
+ 
+// Prompts (IDP_*) 
+ 
+// Resources (IDR_*) 
+HIDR_MAINFRAME                          0x20080
+ 
+// Dialogs (IDD_*) 
+HIDD_ABOUTBOX                           0x20064
+HIDD_ORBPROPS_DIALOG                    0x20066
+HIDD_Prop_Sensitivity                   0x2006B
+HIDD_Prop_Buttons                       0x2006C
+HIDD_Prop_Orientation                   0x2006D
+HIDD_Prop_Axes                          0x2006E
+HIDD_Prop_Gain                          0x2006F
+HIDD_Prop_Precision                     0x20070
+HIDD_Prop_Batchfile                     0x20071
+ 
+// Frame Controls (IDW_*) 

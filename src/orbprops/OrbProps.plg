@@ -1,0 +1,49 @@
+<html>
+<body>
+<pre>
+<h1>Build Log</h1>
+<h3>
+--------------------Configuration: OrbProps - Win32 Release--------------------
+</h3>
+<h3>Command Lines</h3>
+Creating command line "rc.exe /l 0x409 /fo"Release/OrbProps.res" /d "NDEBUG" /d "_AFXDLL" "F:\WORK\OrbProps\OrbProps.rc"" 
+Creating temporary file "H:\TEMP\RSP1EA.tmp" with contents
+[
+/nologo /MD /W3 /GX /O2 /I "DDK" /D "NDEBUG" /D "WIN32" /D "_WINDOWS" /D "_AFXDLL" /D "_MBCS" /D "NOMAIN" /Fp"Release/OrbProps.pch" /YX /Fo"Release/" /Fd"Release/" /FD /c 
+"F:\WORK\OrbProps\OrbProps.cpp"
+]
+Creating command line "cl.exe @H:\TEMP\RSP1EA.tmp" 
+Creating temporary file "H:\TEMP\RSP1EB.tmp" with contents
+[
+J:\Win32Dev\VStudio\VC98\Lib\setupapi.lib DDK\hid.lib /nologo /subsystem:windows /incremental:no /pdb:"Release/OrbProps.pdb" /machine:I386 /out:"Release/OrbProps.exe" 
+.\Release\AxesPage.obj
+.\Release\BatchPage.obj
+.\Release\ButtonsPage.obj
+.\Release\charts.obj
+.\Release\GainPage.obj
+.\Release\orb_control.obj
+.\Release\orbcontrol.obj
+.\Release\OrbProps.obj
+.\Release\OrbPropsDlg.obj
+.\Release\OrientationPage.obj
+.\Release\PrecisionPage.obj
+.\Release\SensitivityPage.obj
+.\Release\StdAfx.obj
+.\Release\TokenEx.obj
+.\Release\validity.obj
+.\Release\OrbProps.res
+]
+Creating command line "link.exe @H:\TEMP\RSP1EB.tmp"
+<h3>Output Window</h3>
+Compiling resources...
+Compiling...
+OrbProps.cpp
+Linking...
+
+
+
+<h3>Results</h3>
+OrbProps.exe - 0 error(s), 0 warning(s)
+</pre>
+</body>
+</html>
