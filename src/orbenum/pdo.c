@@ -248,6 +248,7 @@ OrbPdoQueryRelations(IN PPDO_EXTENSION pdevExt, IN PIRP Irp)
 	NTSTATUS status;
 	PDEVICE_RELATIONS rel, oldrel;
 	ULONG count, size, i, relType;
+	BOOLEAN retObj = FALSE;
 
 	// Get I/O stack location and stuff
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
@@ -257,18 +258,19 @@ OrbPdoQueryRelations(IN PPDO_EXTENSION pdevExt, IN PIRP Irp)
 	switch (relType) {
 	case TargetDeviceRelation:
 	DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): target relations\n"));
+	retObj = TRUE;
 	break;
 	case EjectionRelations:
 	DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): ejection relations\n"));
-	// Just complete request if device is not removed
-	if (!pdevExt->Removed) {
-		return CompleteIrp(Irp, Irp->IoStatus.Status, Irp->IoStatus.Information);
+	if (pdevExt->Removed) {
+		retObj = TRUE;
 	}
 	break;
 	case RemovalRelations:
 	DbgOut(ORB_DBG_PDO, ("OrbPdoQueryRelations(): removal relations\n"));
-	// Simply complete request
-	//return CompleteIrp(Irp, Irp->IoStatus.Status, Irp->IoStatus.Information);
+	if (pdevExt->Removed) {
+		retObj = TRUE;
+	}
 	break;
 	}
 	// Return PDO for all relations
@@ -277,9 +279,13 @@ OrbPdoQueryRelations(IN PPDO_EXTENSION pdevExt, IN PIRP Irp)
 	rel = ExAllocatePoolWithTag(PagedPool, sizeof(DEVICE_RELATIONS), 'ZbrO');
 	status = STATUS_INSUFFICIENT_RESOURCES;
 	if (rel) {
-		rel->Count = 1;
-		rel->Objects[0] = pdevExt->devObj;
-		ObReferenceObject(pdevExt->devObj);
+		if (retObj) {
+			rel->Count = 1;
+			rel->Objects[0] = pdevExt->devObj;
+			ObReferenceObject(pdevExt->devObj);
+		} else {
+			rel->Count = 0;
+		}
 		status = STATUS_SUCCESS;
 		// TBD: don't free oldrel, add to it?
 		if (oldrel)
