@@ -15,7 +15,6 @@ wmi.c \
 dispatch.c \
 fdo.c \
 pdo.c \
-misc.c \
 detect.c \
 notify.c \
 lock.c \
@@ -25,4 +24,3 @@ debug.c \
 ..\misc.c \
 ..\debug_base.c \
 orbenum.rc 
-
