@@ -49,6 +49,9 @@ VOID
 SBallParseErrorPacket(IN PORB_DATA orbData);
 
 VOID
+SBallParseNullRegionPacket(IN PORB_DATA orbData);
+
+VOID
 SBallParseTerm(IN PORB_DATA orbData);
 
 
@@ -137,7 +140,7 @@ SBallParseChar(IN PORB_DATA orbData, IN UCHAR c)
 	  OrbClearBuffer(orbData, BALL_ERROR_PACKET);
 	  break;
 	case 'N':
-	  OrbClearBuffeR(orbData, BALL_NULL_PACKET);
+	  OrbClearBuffer(orbData, BALL_NULL_REGION_PACKET);
 	//eat all of the following packet types
 	case 'Z': //zero packet
 	case 'C': //comm mode packet
@@ -220,7 +223,7 @@ SBallParseDisplacementPacket( IN PORB_DATA orbData )
   LONG tx, ty, tz, rx, ry, rz;
   PUCHAR pch;  
 
-  pch == orbData->packetBuffer;
+  pch = orbData->packetBuffer;
 #define DISP_HELPER( p, i ) ((p[i] << 8) | (p[i+1]))
   tx = DISP_HELPER( pch, 3 );
   ty = DISP_HELPER( pch, 5 );
@@ -230,7 +233,7 @@ SBallParseDisplacementPacket( IN PORB_DATA orbData )
   rz = DISP_HELPER( pch, 13 );
 
   OrbDataSetPhysicalAxes( orbData, tx, ty, tz, rx, ry, rz );
-  OrbPrintAxesBtns( orbData );
+  DbgPrintAxes( ORB_DBG_SBALL, orbData );
   //call our callback
   OrbParseCallFunc( orbData );
 }
@@ -339,7 +342,7 @@ SBallParseAdvancedButtonKeyPacket( IN PORB_DATA orbData )
 
 // Simple
 VOID
-SBallParseReset(IN PORB_DATA orbData)
+SBallParseResetPacket(IN PORB_DATA orbData)
 {
   DbgOut( ORB_DBG_SBALL, ("parsing reset packet" ) );
   // Call callback function
@@ -356,6 +359,7 @@ SBallParseErrorPacket(IN PORB_DATA orbData)
 
   pch = orbData->packetBuffer;
   // Print error info
+#if 0
   DbgOut( ORB_DBG_SBALL, ("SBallParseError(): \nE1: %d\nE2: %d\nE3: %d\nE4: %d\nE5: %d\nE6: %d\nE7: %d\nE8: %d\nE9: %d\nE10: %d",
 			  SELECT_BIT( pch[ 1 ], 6 ),
 			  SELECT_BIT( pch[ 1 ], 7 ),
@@ -363,11 +367,12 @@ SBallParseErrorPacket(IN PORB_DATA orbData)
 			  SELECT_BIT( pch[ 2 ], 3 ),
 			  SELECT_BIT( pch[ 2 ], 4 ),
 			  SELECT_BIT( pch[ 2 ], 5 ),
-			  0, //no E7 register!?
+			  0,
 			  SELECT_BIT( pch[ 1 ], 0 ),
 			  SELECT_BIT( pch[ 1 ], 1 ),
 			  SELECT_BIT( pch[ 1 ], 2 ),
 			  ));
+#endif
   
   // Call appropriate function
   OrbParseCallFunc(orbData);
@@ -375,7 +380,7 @@ SBallParseErrorPacket(IN PORB_DATA orbData)
 
 // Parse null region packet
 VOID
-SBallParseNullRegion(IN PORB_DATA orbData)
+SBallParseNullRegionPacket(IN PORB_DATA orbData)
 { 
   PUCHAR pch;
 

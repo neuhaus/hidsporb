@@ -22,5 +22,4 @@ SBallCleanup(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP cleanupIrp)
 VOID
 SBallParseChar(IN PORB_DATA orbData, IN UCHAR c);
 
-
 #endif

@@ -106,7 +106,6 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PDEVICE_EXTENSION devExt;
 	NTSTATUS status;
 	PIO_STACK_LOCATION irpSp;
-	PDEVICE_OBJECT nextDevObj, ndo1;
 	CHAR func;
 
 	PAGED_CODE();
@@ -149,11 +148,6 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		status = CallNextDriver(devExt->nextDevObj, Irp);
 		break;
 	default:
-		nextDevObj = GET_PDO_FROM_EXT(devObj);
-		ndo1 = devExt->nextDevObj;
-		if (nextDevObj == 1) {
-			status = CompleteIrp(Irp, STATUS_NOT_SUPPORTED, 0);
-		}
 		status = CallNextDriver(devExt->nextDevObj, Irp);
 	}
 	// Release remove lock

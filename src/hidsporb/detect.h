@@ -5,7 +5,7 @@
 //
 
 // Number of Orb models we support
-#define	ORB_NUM_MODELS		1
+#define	ORB_NUM_MODELS		2
 
 typedef NTSTATUS
 (*PORB_DETECT)(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP detectIrp);
@@ -18,6 +18,7 @@ typedef NTSTATUS
 (*PORB_CLEANUP)(IN PDEVICE_OBJECT serObj, IN PORB_DATA orbData, IN PIRP cleanupIrp);
 
 typedef struct _HISDPORB_MODEL {
+	PWCHAR		pnpId;
 	PCHAR		modelName;
 	PORB_DETECT	orbDetect;
 	PORB_INIT	orbInit;

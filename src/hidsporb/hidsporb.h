@@ -89,6 +89,7 @@ OrbRemoveDevice(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
 #include "io.h"
 #include "irpq.h"
 #include "sorb.h"
+#include "sball.h"
 #include "parse.h"
 #include "translat.h"
 #include "charts.h"
