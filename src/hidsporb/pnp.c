@@ -229,7 +229,7 @@ OrbRemoveDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	IoFreeIrp(devExt->readIrp);
 	devExt->readIrp = NULL;
 	// Clean up read queue
-	OrbInitReadQueue(devExt);
+	OrbCleanupReadQueue(devExt);
 	// Send to lower driver
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	IoSkipCurrentIrpStackLocation(Irp);
