@@ -3,6 +3,7 @@
 //
 // Initialization & unload functions
 //
+#define	DEFINE_GUID
 
 #include "hidsporb.h"
 

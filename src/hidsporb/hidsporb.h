@@ -5,7 +5,6 @@
 #include <hidusage.h>
 #include <hidport.h>
 
-#define	DEFINE_GUID
 #include <initguid.h>
 #include <wdmguid.h>
 #include <ntddser.h>

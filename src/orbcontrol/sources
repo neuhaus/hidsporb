@@ -7,7 +7,7 @@ UMENTRY=main
 
 MSC_WARNING_LEVEL=-W3 -WX
 
-INCLUDES=..;\ntddk\inc\ddk;\ntddk\inc;
+INCLUDES=..;\ntddk\inc\ddk;\ntddk\inc;\ntddk\src\wdm\hid\inc;..\hidsporb
 
 USER_C_FLAGS=-GX
         

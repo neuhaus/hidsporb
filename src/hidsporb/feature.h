@@ -1,5 +1,5 @@
-#ifndef FEATURES_H
-#define FEATURES_H
+#ifndef FEATURE_H
+#define FEATURE_H
 
 /*
   this module contains structures and definitions for feature reports.

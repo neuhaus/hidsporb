@@ -7,8 +7,8 @@ extern "C" {
 #ifndef CONTRACT_H
 #include "contract.h"
 #endif
-#ifndef FEATURES_H
-#include "features.h"
+#ifndef FEATURE_H
+#include "feature.h"
 #endif
 extern "C" {
 #ifndef VALIDITY_H
@@ -626,13 +626,13 @@ orb_control::is_valid_null_region( int region )
 int
 orb_control::is_valid_curve_id( int curve_id )
 {
-  return ::is_valid_curve_id( curve_id );
+  return ::OrbIsValidCurveId( curve_id );
 }
 
 int
 orb_control::is_valid_curve( unsigned short* buffer )
 {
-  return ::is_valid_curve( buffer );
+  return ::OrbIsValidCurve( buffer );
 }
 
 orb_control::error
