@@ -70,9 +70,13 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 //	lineControl.WordLength = 8;
 //	lineControl.Parity = NO_PARITY;
 //	lineControl.StopBits = STOP_BIT_1;
-	lineControl.WordLength = 8;
-	lineControl.Parity = 0;
-	lineControl.StopBits = 1;
+/*copy these defines from serial.h...? --VPutz*/
+#define SERIAL_8_DATA       ((UCHAR)0x08)
+#define SERIAL_NONE_PARITY  ((UCHAR)0x00)
+#define SERIAL_1_STOP       ((UCHAR)0x00)
+	lineControl.WordLength = SERIAL_8_DATA;
+	lineControl.Parity = SERIAL_NONE_PARITY;
+	lineControl.StopBits = SERIAL_1_STOP;
 	// Set word size, stop bits and parity stuff
 	status = OrbSerSetLineControl(devObj, &lineControl);
 	// Fail if no success
