@@ -217,9 +217,11 @@ OrbReadSomething(IN PDEVICE_OBJECT devObj, PCHAR buffer)
   //DbgOut( ORB_DBG_ORBIO, ("OrbReadSomething(): %s\n", &buffer[0]));
   DbgOut( ORB_DBG_ORBIO, ("\nOrbReadSomething(): Buffer end\n"));
   
-  //free our Irp
-  IoFreeIrp( Irp );
 
- failed:
+failed:
+  //free our Irp
+  if (Irp) {
+      IoFreeIrp( Irp );
+  }
   DbgOut( ORB_DBG_ORBIO, ("OrbReadSomething(): exit\n"));
 }
