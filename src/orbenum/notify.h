@@ -2,11 +2,12 @@
 // notify.h
 //
 
-typedef struct _ORB_NOTIFY_CONTEXT {
-	ULONG		flags;	  // 0 for arrival, 1 for removal
-	PWCHAR		linkName; // Link name
-	PDEVICE_OBJECT	fdo;	// Our bus FDO
-	PIO_WORKITEM	item;	// Work item pointer
+typedef struct _ORB_NOTIFY_CONTEXT 
+{
+  ULONG		flags;	  // 0 for arrival, 1 for removal
+  PWCHAR		linkName; // Link name
+  PDEVICE_OBJECT	fdo;	// Our bus FDO
+  PIO_WORKITEM	item;	// Work item pointer
 } ORB_NOTIFY_CONTEXT, *PORB_NOTIFY_CONTEXT;
 
 // Notify functions

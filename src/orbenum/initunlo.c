@@ -14,40 +14,41 @@
 NTSTATUS
 DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath)
 {
-	ULONG i;
+  ULONG i;
 
-	UNREFERENCED_PARAMETER (RegistryPath);
+  UNREFERENCED_PARAMETER (RegistryPath);
 
-	DbgOut(("OrbEnumDriverEntry()\n"));
+  DbgOut(("OrbEnumDriverEntry()\n"));
 
-	//
-	// Create dispatch points for the IRPs.
-	//
+  //
+  // Create dispatch points for the IRPs.
+  //
 
-	for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; i++) {
-		DriverObject->MajorFunction[i] = OrbEnumDispatch;
-	}
-	DriverObject->DriverUnload			= OrbEnumUnload;
-	DriverObject->MajorFunction[IRP_MJ_PNP]		= OrbEnumDispatchPnp;
-	DriverObject->MajorFunction[IRP_MJ_POWER]	= OrbEnumDispatchPower;
-	DriverObject->DriverExtension->AddDevice	= OrbEnumAddDevice;
+  for (i = 0; i <= IRP_MJ_MAXIMUM_FUNCTION; i++) 
+    {
+      DriverObject->MajorFunction[i] = OrbEnumDispatch;
+    }
+  DriverObject->DriverUnload			= OrbEnumUnload;
+  DriverObject->MajorFunction[IRP_MJ_PNP]		= OrbEnumDispatchPnp;
+  DriverObject->MajorFunction[IRP_MJ_POWER]	= OrbEnumDispatchPower;
+  DriverObject->DriverExtension->AddDevice	= OrbEnumAddDevice;
 
-	return STATUS_SUCCESS;
+  return STATUS_SUCCESS;
 }
 
 VOID
 OrbEnumUnload(IN PDRIVER_OBJECT DriverObject)
 {
-	PAGED_CODE ();
+  PAGED_CODE ();
 
-	//
-	// The device object(s) should be NULL now
-	// (since we unload, all the devices objects associated with this
-	// driver must have been deleted.
-	//
-	ASSERT(DriverObject->DeviceObject == NULL);
+  //
+  // The device object(s) should be NULL now
+  // (since we unload, all the devices objects associated with this
+  // driver must have been deleted.
+  //
+  ASSERT(DriverObject->DeviceObject == NULL);
 
-	DbgOut(("OrbEnumUnload()\n"));
+  DbgOut(("OrbEnumUnload()\n"));
 
-	return;
+  return;
 }
