@@ -8,5 +8,5 @@ TARGETLIBS=$(DDK_LIB_PATH)\ntoskrnl.lib $(DDK_LIB_PATH)\hidclass.lib
 INCLUDES=..\inc;..\..\inc;\dev\ntddk\src\wdm\hid\inc;\dev\ntddk\inc\ddk
 
 SOURCES=initunlo.c pnp.c power.c wmi.c ioctl.c dispatch.c misc.c \
-	serial.c orbio.c io.c parse.c translat.c charts.c irpq.c \
-	debug.c hidsporb.rc
+	serial.c orbio.c io.c detect.c parse.c sorb.c translat.c \
+	validity.c charts.c irpq.c settings.c debug.c hidsporb.rc

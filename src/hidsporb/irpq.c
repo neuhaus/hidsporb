@@ -22,11 +22,11 @@ OrbQueueReadReport(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 
 	// Allocate queue item
-	item = ExAllocatePoolWithTag(NonPagedPool, sizeof(ORB_QUEUE_ITEM), 'QbrO');
+	item = (PORB_QUEUE_ITEM) ExAllocatePoolWithTag(NonPagedPool, sizeof(ORB_QUEUE_ITEM), 'QbrO');
 	// Fail if no memory
 	if (item == NULL) {
 		// Bad luck
-		DbgOut(("OrbQueueReadReport(): no item\n"));
+		DbgOut(ORB_DBG_IRPQ, ("OrbQueueReadReport(): no item\n"));
 
 		// Complete Irp with error
 		return CompleteIrp(Irp, status, 0);
@@ -39,6 +39,7 @@ OrbQueueReadReport(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 	ExInterlockedInsertHeadList(&devExt->readQueueList, &item->List, &devExt->readQueueLock);
 	// Increment pending I/O count
 	InterlockedIncrement(&devExt->readsPending);
+	//DbgOut(ORB_DBG_IRPQ, ("OrbQueueReadReport(): inserted\n"));
 
 	return STATUS_PENDING;
 }
@@ -49,7 +50,7 @@ OrbDequeueReadReport(IN PDEVICE_EXTENSION devExt)
 {
 	PORB_QUEUE_ITEM item;
 
-	item = ExInterlockedRemoveHeadList(&devExt->readQueueList, &devExt->readQueueLock);
+	item = (PORB_QUEUE_ITEM) ExInterlockedRemoveHeadList(&devExt->readQueueList, &devExt->readQueueLock);
 	// See if queue has something
 	if (item) {
 		// Decrement pending I/O count
@@ -80,15 +81,13 @@ OrbFlushQueue(IN PDEVICE_EXTENSION devExt, NTSTATUS status)
 
 // Dequeue and complete Irp
 VOID
-OrbCompletePacket(IN PDEVICE_EXTENSION devExt)
+OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 {
 	PORB_QUEUE_ITEM item;
 	PHIDSPORB_REPORT report;
 	HIDSPORB_REPORT localReport;
 	ULONG i;
 
-	// Clear packet buffer
-	OrbClearBuffer(devExt, ORB_UNKNOWN_PACKET);
 	// Dequeue item
 	item = OrbDequeueReadReport(devExt);
 	// Just return if there is nothing on queue
@@ -102,11 +101,15 @@ OrbCompletePacket(IN PDEVICE_EXTENSION devExt)
 	localReport.reportId = 1;
 	// Copy Axes
 	for (i = 0; i < ORB_NUM_AXES; i++) {
-		localReport.Axes[i] = OrbLogicalAxisValue(devExt, i, 0);
-
+		localReport.Axes[i] = OrbLogicalAxisValue(orbData, i, 0);
 	}
 	// Copy buttons
-	localReport.buttonMap = OrbMapButtons(devExt);
+	localReport.buttonMap = OrbMapButtons(orbData);
+//#if DBG
+	if (localReport.buttonMap) {
+	DbgOut(ORB_DBG_REPORT, ("OrbCompletePacket(): buttons %x\n", (ULONG) localReport.buttonMap));
+	}
+//#endif
 	// Copy report
 	RtlCopyMemory(report, &localReport, sizeof(HIDSPORB_REPORT));
 	// Complete IRP

@@ -8,7 +8,7 @@
 #define VER_INTERNALNAME_STR		"hidsporb.sys"
 #define	VER_PRODUCTNAME_STR		"HID SpaceORB driver"
 #define	VER_LEGALCOPYRIGHT_STR		"Copyright (c) Yuri Chebotarev and Victor B. Putz 2002"
-#define	VER_PRODUCTVERSION_STR		"1.99 alpha"
+#define	VER_PRODUCTVERSION_STR		"1.99 beta"
 #define	VER_PRODUCTVERSION		1,99,00,00
 #define	VER_COMPANYNAME_STR		"Two guys, Inc."
 

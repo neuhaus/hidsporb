@@ -39,7 +39,7 @@ OrbSerSyncIoctlEx(IN PDEVICE_OBJECT devObj,
 	PIRP Irp;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 
-	DbgOut(("OrbSerIoctlEx(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbSerIoctlEx(): enter\n"));
 	// Clear event
 	KeClearEvent(event);
 	// Build ioctl Irp
@@ -54,7 +54,7 @@ OrbSerSyncIoctlEx(IN PDEVICE_OBJECT devObj,
 					Iosb);
 	// Check if we allocated Irp
 	if (Irp == NULL) {
-		DbgOut(("OrbSerIoctlEx(): no IRP\n"));
+		DbgOut(ORB_DBG_SER, ("OrbSerIoctlEx(): no IRP\n"));
 		goto failed;
 	}
 	// We have Irp, call driver
@@ -66,7 +66,7 @@ OrbSerSyncIoctlEx(IN PDEVICE_OBJECT devObj,
 	// Set status
 	status = Iosb->Status;
 failed:
-	DbgOut(("OrbSerIoctlEx(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbSerIoctlEx(): exit, status %x\n", status));
 
 	return status;
 }
@@ -76,15 +76,15 @@ NTSTATUS
 OrbSerRead(IN PDEVICE_OBJECT devObj, IN PIRP readIrp, OUT PCHAR readBuffer, IN ULONG bufSize, OUT PULONG bufRead)
 {
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
-	PIRP Irp, serIrp = NULL;
+	PIRP Irp = NULL;
 	PIO_STACK_LOCATION irpSp;
 	ULONG nRead;
 
-	//DbgOut(("OrbSerRead(): enter buf %p, size %d, bufRead %p\n", readBuffer, bufSize, bufRead));
+	//DbgOut(ORB_DBG_SER, ("OrbSerRead(): enter buf %p, size %d, bufRead %p\n", readBuffer, bufSize, bufRead));
 
 	// Check all parameters
 	if ((readBuffer == NULL) || (bufSize == 0) || (bufRead == NULL)) {
-		DbgOut(("OrbSerRead(): invalid parameter passed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbSerRead(): invalid parameter passed\n"));
 		status = STATUS_INVALID_PARAMETER;
 		goto failed;
 	}
@@ -95,37 +95,35 @@ OrbSerRead(IN PDEVICE_OBJECT devObj, IN PIRP readIrp, OUT PCHAR readBuffer, IN U
 	if (readIrp == NULL) {
 		Irp = IoAllocateIrp(devObj->StackSize + 1, FALSE);
 		if (Irp == NULL) {
-			DbgOut(("OrbSerRead(): no Irp\n"));
+			DbgOut(ORB_DBG_SER, ("OrbSerRead(): no Irp\n"));
 			goto failed;
 		}
-		serIrp = Irp;
-	} else {
-		Irp = readIrp;
+		readIrp = Irp;
 	}
 
 	nRead = 0;
 	// Read loop
 	while (nRead < bufSize) {
 		// Reinitialize Irp
-		IoReuseIrp(Irp, STATUS_SUCCESS);
+		IoReuseIrp(readIrp, STATUS_SUCCESS);
 		// Skip our stack location
-		IoSetNextIrpStackLocation(Irp);
+		IoSetNextIrpStackLocation(readIrp);
 		// Get current Irp stack location
-		irpSp = IoGetCurrentIrpStackLocation(Irp);
+		irpSp = IoGetCurrentIrpStackLocation(readIrp);
 		// Set up stack
 		// Set up function code
 		irpSp->MajorFunction = IRP_MJ_READ;
 		// Set up offset & length
 		irpSp->Parameters.Read.ByteOffset.QuadPart = 0;
-		// Btw, should we read full buffer in one step?
+		// TODO: should we read full buffer in one step?
 		irpSp->Parameters.Read.Length = 1;
 		// Set up buffer pointer
-		Irp->AssociatedIrp.SystemBuffer = readBuffer;
+		readIrp->AssociatedIrp.SystemBuffer = readBuffer;
 		// Call next driver and wait for completion
-		status = CallNextDriverWait(devObj, Irp);
+		status = CallNextDriverWait(devObj, readIrp);
 		// Check if read failed
 		if (!NT_SUCCESS(status)) {
-			DbgOut(("OrbSerRead(): failed, nRead %d %x\n", nRead, status));
+			DbgOut(ORB_DBG_SER, ("OrbSerRead(): failed, nRead %d %x\n", nRead, status));
 			break;
 		}
 		// Update readBuffer & friends
@@ -134,12 +132,12 @@ OrbSerRead(IN PDEVICE_OBJECT devObj, IN PIRP readIrp, OUT PCHAR readBuffer, IN U
 		//*bufRead++;
 	}
 	// Free Irp, if allocated
-	if (serIrp != NULL) {
+	if (Irp != NULL) {
 		IoFreeIrp(Irp);
 	}
 	*bufRead = nRead;
 failed:
-	//DbgOut(("OrbSerRead(): exit nRead %d, status %x\n", nRead, status));
+	//DbgOut((ORB_DBG_SER, "OrbSerRead(): exit nRead %d, status %x\n", nRead, status));
 
 	return status;
 }
@@ -163,15 +161,15 @@ NTSTATUS
 OrbSerWrite(IN PDEVICE_OBJECT devObj, IN PIRP writeIrp, IN PCHAR writeBuffer, IN ULONG bufSize, OUT PULONG bufWritten)
 {
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
-	PIRP Irp, serIrp = NULL;
+	PIRP Irp = NULL;
 	PIO_STACK_LOCATION irpSp;
 	ULONG nWritten;
 
-	DbgOut(("OrbSerWrite(): enter buf %p, size %d, bufWritten %p\n", writeBuffer, bufSize, bufWritten));
+	DbgOut(ORB_DBG_SER, ("OrbSerWrite(): enter buf %p, size %d, bufWritten %p\n", writeBuffer, bufSize, bufWritten));
 
 	// Check all parameters
 	if ((writeBuffer == NULL) || (bufSize == 0) || (bufWritten == NULL)) {
-		DbgOut(("OrbSerWrite(): invalid parameter passed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbSerWrite(): invalid parameter passed\n"));
 		status = STATUS_INVALID_PARAMETER;
 		goto failed;
 	}
@@ -182,37 +180,35 @@ OrbSerWrite(IN PDEVICE_OBJECT devObj, IN PIRP writeIrp, IN PCHAR writeBuffer, IN
 	if (writeIrp == NULL) {
 		Irp = IoAllocateIrp(devObj->StackSize + 1, FALSE);
 		if (Irp == NULL) {
-			DbgOut(("OrbSerWrite(): no Irp\n"));
+			DbgOut(ORB_DBG_SER, ("OrbSerWrite(): no Irp\n"));
 			goto failed;
 		}
-		serIrp = Irp;
-	} else {
-		Irp = writeIrp;
+		writeIrp = Irp;
 	}
 
 	nWritten = 0;
 	// Read loop
 	while (nWritten < bufSize) {
 		// Reinitialize Irp
-		IoReuseIrp(Irp, STATUS_SUCCESS);
+		IoReuseIrp(writeIrp, STATUS_SUCCESS);
 		// Skip our stack location
-		IoSetNextIrpStackLocation(Irp);
+		IoSetNextIrpStackLocation(writeIrp);
 		// Get current Irp stack location
-		irpSp = IoGetCurrentIrpStackLocation(Irp);
+		irpSp = IoGetCurrentIrpStackLocation(writeIrp);
 		// Set up stack
 		// Set up function code
 		irpSp->MajorFunction = IRP_MJ_WRITE;
 		// Set up offset & length
 		irpSp->Parameters.Read.ByteOffset.QuadPart = 0;
-		// Btw, should we read full buffer in one step?
+		// TODO: should we read full buffer in one step?
 		irpSp->Parameters.Read.Length = 1;
 		// Set up buffer pointer
-		Irp->AssociatedIrp.SystemBuffer = writeBuffer;
+		writeIrp->AssociatedIrp.SystemBuffer = writeBuffer;
 		// Call next driver and wait for completion
-		status = CallNextDriverWait(devObj, Irp);
+		status = CallNextDriverWait(devObj, writeIrp);
 		// Check if read failed
 		if (!NT_SUCCESS(status)) {
-			DbgOut(("OrbWriteRead(): failed, nWritten %d %x\n", nWritten, status));
+			DbgOut(ORB_DBG_SER, ("OrbWriteRead(): failed, nWritten %d %x\n", nWritten, status));
 			break;
 		}
 		// Update writeBuffer & friends
@@ -221,12 +217,12 @@ OrbSerWrite(IN PDEVICE_OBJECT devObj, IN PIRP writeIrp, IN PCHAR writeBuffer, IN
 		//*bufRead++;
 	}
 	// Free Irp, if allocated
-	if (serIrp != NULL) {
+	if (Irp != NULL) {
 		IoFreeIrp(Irp);
 	}
 	*bufWritten = nWritten;
 failed:
-	DbgOut(("OrbSerWrite(): exit nWritten %d, status %x\n", nWritten, status));
+	DbgOut(ORB_DBG_SER, ("OrbSerWrite(): exit nWritten %d, status %x\n", nWritten, status));
 
 	return status;
 }
@@ -248,40 +244,39 @@ OrbSerWriteChar(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN CHAR Char)
 NTSTATUS
 OrbSerOpenPort(IN PDEVICE_OBJECT devObj, IN PIRP openIrp)
 {
-	PIRP Irp, serIrp = NULL;
+	PIRP Irp = NULL;
 	PIO_STACK_LOCATION irpSp;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 
-	DbgOut(("OrbOpenPort(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbOpenPort(): enter\n"));
 	// Allocate Irp, if not given
 	if (openIrp == NULL) {
 		Irp = IoAllocateIrp(devObj->StackSize, FALSE);
 		if (Irp == NULL) {
-			DbgOut(("OrbOpenPort(): no Irp\n"));
+			DbgOut(ORB_DBG_SER, ("OrbOpenPort(): no Irp\n"));
 			goto failed;
 		}
-		serIrp = Irp;
-	} else {
-		Irp = openIrp;
+		openIrp = Irp;
 	}
-	IoReuseIrp(Irp, STATUS_SUCCESS);
-	IoSetNextIrpStackLocation(Irp);
+	// Init Irp
+	IoReuseIrp(openIrp, STATUS_SUCCESS);
+	IoSetNextIrpStackLocation(openIrp);
 	// Get next stack location
-	irpSp = IoGetCurrentIrpStackLocation(Irp);
+	irpSp = IoGetCurrentIrpStackLocation(openIrp);
 	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
 	// Set up stack location
 	irpSp->MajorFunction = IRP_MJ_CREATE;
 	// Call serial driver
-	status = CallNextDriverWait(devObj, Irp);
+	status = CallNextDriverWait(devObj, openIrp);
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbOpenPort(): cant open, status %x\n", status));
+		DbgOut(ORB_DBG_SER, ("OrbOpenPort(): cant open, status %x\n", status));
 	}
 	// Free Irp, if allocated
-	if (serIrp != NULL) {
-		IoFreeIrp(serIrp);
+	if (Irp != NULL) {
+		IoFreeIrp(Irp);
 	}
 failed:
-	DbgOut(("OrbOpenPort(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbOpenPort(): exit, status %x\n", status));
 
 	return status;
 }
@@ -289,51 +284,51 @@ failed:
 NTSTATUS
 OrbSerClosePort(IN PDEVICE_OBJECT devObj, IN PIRP closeIrp)
 {
-	PIRP Irp, serIrp = NULL;
+	PIRP Irp = NULL;
 	PIO_STACK_LOCATION irpSp;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 
-	DbgOut(("OrbClosePort(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbClosePort(): enter\n"));
 	// Allocate Irp, if not given
 	if (closeIrp == NULL) {
 		Irp = IoAllocateIrp(devObj->StackSize, FALSE);
 		if (Irp == NULL) {
-			DbgOut(("OrbClosePort(): no Irp\n"));
+			DbgOut(ORB_DBG_SER, ("OrbClosePort(): no Irp\n"));
 			goto failed;
 		}
-		serIrp = Irp;
-	} else {
-		Irp = closeIrp;
+		closeIrp = Irp;
 	}
-	IoReuseIrp(Irp, STATUS_SUCCESS);
-	IoSetNextIrpStackLocation(Irp);
+	// Init Irp
+	IoReuseIrp(closeIrp, STATUS_SUCCESS);
+	IoSetNextIrpStackLocation(closeIrp);
 	// Get next stack location
-	irpSp = IoGetCurrentIrpStackLocation(Irp);
+	irpSp = IoGetCurrentIrpStackLocation(closeIrp);
 	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
 	// Set up stack location
 	irpSp->MajorFunction = IRP_MJ_CLOSE;
 	// Call serial driver
-	status = CallNextDriverWait(devObj, Irp);
+	status = CallNextDriverWait(devObj, closeIrp);
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbClosePort(): cant close?, status %x\n", status));
+		DbgOut(ORB_DBG_SER, ("OrbClosePort(): cant close?, status %x\n", status));
 	}
-	IoReuseIrp(Irp, STATUS_SUCCESS);
-	IoSetNextIrpStackLocation(Irp);
+	// Init Irp again
+	IoReuseIrp(closeIrp, STATUS_SUCCESS);
+	IoSetNextIrpStackLocation(closeIrp);
 	// Get next stack location
-	irpSp = IoGetCurrentIrpStackLocation(Irp);
+	irpSp = IoGetCurrentIrpStackLocation(closeIrp);
 	RtlZeroMemory(irpSp, sizeof(IO_STACK_LOCATION));
 	// Set up stack location
 	irpSp->MajorFunction = IRP_MJ_CLEANUP;
 	// Call serial driver
-	status = CallNextDriverWait(devObj, Irp);
+	status = CallNextDriverWait(devObj, closeIrp);
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbClosePort(): cant clean up?, status %x\n", status));
+		DbgOut(ORB_DBG_SER, ("OrbClosePort(): cant clean up?, status %x\n", status));
 	}
-	if (serIrp != NULL) {
+	if (Irp != NULL) {
 		IoFreeIrp(Irp);
 	}
 failed:
-	DbgOut(("OrbClosePort(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbClosePort(): exit, status %x\n", status));
 
 	return status;
 

@@ -10,6 +10,3 @@ OrbPowerUp(IN PDEVICE_OBJECT devObj);
 
 NTSTATUS
 OrbPowerDown(IN PDEVICE_OBJECT devObj);
-
-NTSTATUS
-OrbDetect(IN PDEVICE_OBJECT devObj);

@@ -31,7 +31,7 @@ DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath)
 	NTSTATUS status;
 	HID_MINIDRIVER_REGISTRATION hidReg;
 
-	DbgOut(("OrbDriverEntry()\n"));
+	DbgOut(ORB_DBG_ALL, ("OrbDriverEntry()\n"));
 
 	//
 	// Create dispatch points for the IRPs.
@@ -70,7 +70,7 @@ OrbUnload(IN PDRIVER_OBJECT DriverObject)
 	//
 
 	ASSERT(DriverObject->DeviceObject == NULL);
-	DbgOut(("OrbUnload()\n"));
+	DbgOut(ORB_DBG_ALL, ("OrbUnload()\n"));
 
 	return;
 }

@@ -15,12 +15,10 @@
 
 #define HIDSPORB_TAG	'brOH'
 
+#include "orb.h"
 #include "packet.h"
 
-#define	ORB_NUM_AXES		6
-#define	ORB_NUM_PHYS_BUTTONS	7
-
-// Our bus FDO device extension
+// Our device extension
 typedef struct _DEVICE_EXTENSION {
 	PDEVICE_OBJECT	devObj; 	// Our device object
 	PDRIVER_OBJECT	DriverObject;	// Driver object
@@ -29,55 +27,21 @@ typedef struct _DEVICE_EXTENSION {
 	BOOLEAN		Filler[2];	// bug fix
 	PDEVICE_OBJECT	nextDevObj;	// PDO that BUS gave to us
 	IO_REMOVE_LOCK	RemoveLock;	// Remove lock
-	// Buffers used for I/O
+	// Irp used for I/O
 	PIRP		readIrp;	// Irp used for I/O
-	ULONG		currPacketType; // Current packet type
-	CHAR		packetBuffer[ORB_PACKET_BUFFER_LENGTH]; // packet buffer
-	USHORT		bufferCursor;	// Current cursor
+	ORB_DATA	orbData;	// packet parser engine stuff
 	// Thread stuff
 	BOOLEAN		threadStarted;	//
 	KEVENT		threadTermEvent; //
 	KEVENT		threadTerminated; //
 	PVOID		threadObj;	// Thread object
-	// logical mapping stuff
-	// Fields for physical-to-logical control bindings
-	// axis map--for each logical axis, an entry in this map contains the
-	//index of the physical axis to use
-	LONG		Axes[ORB_NUM_AXES];		// Axes
-	ULONG		buttons[ORB_NUM_PHYS_BUTTONS];	// Buttons
-	ULONG		AxisMap[ORB_NUM_AXES];		// Physical/Logical axis map
-	// whether or not to use chording on this device.  If chording
-	// is used, buttons A/B on the orb set up a context for the remaining
-	// four buttons
-	BOOLEAN use_chording;
-	// upcoming null region.  Note that the region is not actually
-	// set in the orb until it's processed during orb_comm, thus the
-	// two elements for "new_null_region_pending" and "null_region"
-	//
-	int null_region;
-  	// sensitivities -- determines the "response curve" used by each axis
-	int sensitivities[ORB_NUM_AXES];
-  	// polarities -- determines "which direction is positive" on each axis
-	int polarities[ORB_NUM_AXES];
-	// gains -- determines "amplification" of each axis
-	int gains[ORB_NUM_AXES];
-	// precision settings--first sensitivity (response curve when
-	// precision button is pressed)
-	int precision_sensitivity;
-	// gain to use when button is pressed
-	int precision_gain;
-	// what button type -- logical or physical -- for precision
-	int precision_button_type;
-	// what button index for precision
-	int precision_button_index;
-
-	BOOLEAN new_null_region_pending;
-	
 	// queue stuff
 	KSPIN_LOCK	readQueueLock;	// Spin lock
 	LIST_ENTRY	readQueueList;	// List
 	ULONG		readsPending;	// Reads pending
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
+
+#define	GET_ORB_DATA(devExt)	(&(((PDEVICE_EXTENSION) (devExt))->orbData))
 
 #define HIDSPORB_POLARITY_NEGATIVE	0
 #define HIDSPORB_POLARITY_ZERO		1
@@ -128,10 +92,14 @@ OrbRemoveDevice(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
 #include "ioctl.h"
 #include "io.h"
 #include "irpq.h"
+#include "sorb.h"
 #include "parse.h"
 #include "translat.h"
 #include "charts.h"
 #include "feature.h"
+#include "validity.h"
+#include "settings.h"
+#include "detect.h"
 
 #define HIDSPORB_VENDOR_ID 0x5a8
 #define HIDSPORB_PRODUCT_ID 0x360

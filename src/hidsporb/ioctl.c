@@ -17,12 +17,12 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
 	ioctl = irpSp->Parameters.DeviceIoControl.IoControlCode;
-	DbgOut(("OrbInternalIoctl(): enter %d\n", ioctl));
+	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): enter %d\n", ioctl));
 	// Get remove lock
 	status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
 	// Fail if unsuccessful
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInternalIoctl(): remove lock failed, status %x\n", status));
+		DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): remove lock failed, status %x\n", status));
 		status = CompleteIrp(Irp, STATUS_DELETE_PENDING, 0);
 		goto failed;
 	}
@@ -33,7 +33,7 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// After that, HID sends us IRP_MN_REMOVE_DEVICE
 	// This is a temporary workaround, I'll fix it soon
 	if (devExt->Removed) {
-		DbgOut(("OrbInternalIoctl(): remove lock failed, status %x\n", status));
+		DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): remove lock failed, status %x\n", status));
 		IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
 		status = CompleteIrp(Irp, STATUS_DELETE_PENDING, 0);
 		goto failed;
@@ -56,14 +56,12 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	case IOCTL_HID_GET_STRING:
 		status = OrbGetString(devObj, Irp);
 		break;
-#if 0
 	case IOCTL_HID_GET_FEATURE:
-		status = OrbGetFeature(devObj, Irp);
+		status = OrbGetSetFeature(devObj, Irp, TRUE);
 		break;
 	case IOCTL_HID_SET_FEATURE:
-		status = OrbSetFeature(devObj, Irp);
+		status = OrbGetSetFeature(devObj, Irp, FALSE);
 		break;
-#endif
 	case IOCTL_GET_PHYSICAL_DESCRIPTOR:
 	case IOCTL_HID_ACTIVATE_DEVICE:
 	case IOCTL_HID_DEACTIVATE_DEVICE:
@@ -76,7 +74,7 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Release remove lock
 	IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
 failed:
-	DbgOut(("OrbInternalIoctl(): exit %d, status %x\n", ioctl, status));
+	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): exit %d, status %x\n", ioctl, status));
 
 	return status;
 }
@@ -91,13 +89,13 @@ OrbGetDeviceDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	ULONG len;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(("OrbGetDeviceDescriptor(): enter\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceDescriptor(): enter\n"));
 	// Get buffer & size
 	hidDesc = Irp->UserBuffer;
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	// Fail if the buffer is smaller than needed
 	if (len < sizeof(HID_DESCRIPTOR)) {
-		DbgOut(("OrbGetDeviceDescriptor(): small buffer\n"));
+		DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceDescriptor(): small buffer\n"));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -115,7 +113,7 @@ OrbGetDeviceDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Complete request
 	status = CompleteIrp(Irp, STATUS_SUCCESS, sizeof(HID_DESCRIPTOR));
 failed:
-	DbgOut(("OrbGetDeviceDescriptor(): exit, status %x\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceDescriptor(): exit, status %x\n"));
 
 	return status;
 }
@@ -129,11 +127,11 @@ OrbGetReportDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	ULONG len;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(("OrbGetReportDescriptor(): enter\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetReportDescriptor(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	// Fail if the buffer is smaller than needed
 	if (len < sizeof(SpaceOrbReport)) {
-		DbgOut(("OrbGetReportDescriptor(): small buffer\n"));
+		DbgOut(ORB_DBG_IOCTL, ("OrbGetReportDescriptor(): small buffer\n"));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -142,7 +140,7 @@ OrbGetReportDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Complete request
 	status = CompleteIrp(Irp, STATUS_SUCCESS, sizeof(SpaceOrbReport));
 failed:
-	DbgOut(("OrbGetReportDescriptor(): exit, status %x\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetReportDescriptor(): exit, status %x\n"));
 
 	return status;
 }
@@ -158,11 +156,11 @@ OrbReadReport(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	ULONG len;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(("OrbReadReport(): enter\n"));
+	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	// Fail if the buffer is smaller than needed
 	if (len < HIDSPORB_REPORT_SIZE) {
-		DbgOut(("OrbGetReportDescriptor(): %d, small buffer\n", len));
+		DbgOut(ORB_DBG_REPORT, ("OrbGetReportDescriptor(): %d, small buffer\n", len));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -170,7 +168,7 @@ OrbReadReport(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Queue this request
 	status = OrbQueueReadReport(devExt, Irp);
 failed:
-	DbgOut(("OrbReadReport(): exit, status %x\n"));
+	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): exit, status %x\n"));
 
 	return status;
 }
@@ -185,11 +183,11 @@ OrbGetDeviceAttributes(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PHID_DEVICE_ATTRIBUTES devAttr;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(("OrbGetDeviceAttributes(): enter\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceAttributes(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	// Fail if the buffer is smaller than needed
 	if (len < sizeof(HID_DEVICE_ATTRIBUTES)) {
-		DbgOut(("OrbGetReportDescriptor(): small buffer\n"));
+		DbgOut(ORB_DBG_IOCTL, ("OrbGetReportDescriptor(): small buffer\n"));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -203,7 +201,7 @@ OrbGetDeviceAttributes(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Complete request
 	status = CompleteIrp(Irp, STATUS_SUCCESS, sizeof(HID_DEVICE_ATTRIBUTES));
 failed:
-	DbgOut(("OrbGetDeviceAttributes(): exit, status %x\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceAttributes(): exit, status %x\n"));
 
 	return status;
 }
@@ -221,7 +219,7 @@ OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PCHAR pStr, pStr1;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(("OrbGetString(): enter\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	reqStr = (ULONG) (irpSp->Parameters.DeviceIoControl.Type3InputBuffer) & 0xffff;
 	// Set up device attributes
@@ -239,11 +237,11 @@ OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	default:
 		pStr1 = "UNSUPPORTED STRING";
 	}
-	DbgOut(("OrbGetString(): string is %s\n", pStr1));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): string is %s\n", pStr1));
 	len1 = strlen(pStr1);
 	// Fail if the buffer is smaller than needed
 	if (len < (len1 + 1)) {
-		DbgOut(("OrbGetStringDescriptor(): small buffer\n"));
+		DbgOut(ORB_DBG_IOCTL, ("OrbGetStringDescriptor(): small buffer\n"));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, len + 1);
 		goto failed;
 	}
@@ -252,20 +250,178 @@ OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Complete request
 	status = CompleteIrp(Irp, STATUS_SUCCESS, len + 1);
 failed:
-	DbgOut(("OrbGetString(): exit, status %x\n"));
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): exit, status %x\n"));
 
 	return status;
 }
 
-// Get feature
+//#if DBG
+
+static PCHAR chordStr[] = {
+	"no chording",
+	"chording"
+};
+
+static
+VOID
+OrbPrintFeatureData(IN PHIDSPORB_FEATURE_DATA featureData)
+{
+	ULONG i;
+
+	DbgOut(ORB_DBG_FEATURE, ("OrbPrintFeatureData(): begin\n"));
+	for (i = 0; i < ORB_NUM_AXES; i++) {
+		// Axis map
+		DbgOut(ORB_DBG_FEATURE, ("Axis %01d->%01d ", i, featureData->axis_map[i]));
+		// sensitivity
+		DbgOut(ORB_DBG_FEATURE, ("sens %02d ", featureData->sensitivities[i]));
+		// polarities
+		DbgOut(ORB_DBG_FEATURE, ("pola %01d ", featureData->polarities[i]));
+		// gains
+		DbgOut(ORB_DBG_FEATURE, ("gain %02d\n", featureData->gains[i]));
+	}
+	// Print other stuff
+	DbgOut(ORB_DBG_FEATURE, ("chord %01d ", (LONG) featureData->use_chording));
+	DbgOut(ORB_DBG_FEATURE, ("nullr %02d ", (LONG) featureData->null_region));
+	DbgOut(ORB_DBG_FEATURE, ("psens %02d ", (LONG) featureData->precision_sensitivity));
+	DbgOut(ORB_DBG_FEATURE, ("pgain %02d ", (LONG) featureData->precision_gain));
+	DbgOut(ORB_DBG_FEATURE, ("pbtnt %01d ", (LONG) featureData->precision_button_type));
+	DbgOut(ORB_DBG_FEATURE, ("pbtni %01d\n", (LONG) featureData->precision_button_index));
+
+	DbgOut(ORB_DBG_FEATURE, ("OrbPrintFeatureData(): end\n"));
+}
+//#else
+//#define	OrbPrintFeatureData(_x_)
+//#endif
+
+// Note, this is temporary
+// make sure it's in sync with HIDSPORB_*_PACKET_ID
+static ULONG featureSizes[] = { 0, 0, HIDSPORB_FEATURE_PACKET_SIZE, HIDSPORB_SENSITIVITY_CURVE_PACKET_SIZE };
+
+// Get/set feature
 NTSTATUS
-OrbGetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
+OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 {
 	PDEVICE_EXTENSION devExt;
-	PIO_STACK_LOCATION irpSp;
-}
+	PHID_XFER_PACKET packet;
+	UCHAR reportId;
+	ULONG len;
+	PHIDSPORB_FEATURE_DATA featureData;
+	PHIDSPORB_SENSITIVITY_CURVE curveData;
+	NTSTATUS status = STATUS_BUFFER_TOO_SMALL;
+	PORB_DATA orbData;
+	ULONG i;
 
-NTSTATUS
-OrbSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
-{
+	// Get device extension
+	devExt = GET_DEV_EXT(devObj);
+	// Get Orb data
+	orbData = GET_ORB_DATA(devExt);
+	// Initialize IoStatus
+	Irp->IoStatus.Information = 0;
+	// Get packet pointer and other stuff
+	packet = (PHID_XFER_PACKET) Irp->UserBuffer;
+	reportId = packet->reportId;
+	// Get pointers & packet length
+	featureData = curveData = packet->reportBuffer;
+	len = packet->reportBufferLen;
+	DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): packet rep %p repid %d len %d\n", featureData, (ULONG) reportId, len));
+	// Check if report ID is correct
+	if ((reportId < HIDSPORB_FEATURE_MIN_ID) || ((reportId > HIDSPORB_FEATURE_MAX_ID))) {
+		DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): invalid report id %d\n", (ULONG) reportId));
+		goto failed;
+	}
+	// Fail if buffer is too small
+	if (len < featureSizes[reportId]) {
+		DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): small packet rep %d len %d\n", (ULONG) reportId, len));
+		goto failed;
+	}
+	// How much we copied
+	len = featureSizes[reportId];
+	// Note, we should think about protecting data from change
+	// (via spinlock). E.g. we must first copy featureData to local buffer,
+	// then lock all device data (Axes, mapping stuff and so) and only
+	// then copy all what needed
+	// devExt->Axes[] must be protected by spinlock too.
+	// consider what axes we can get when OrbReadThread() is running on
+	// another CPU and changing Axes[] behind our back.
+	// Determine request
+	switch (reportId) {
+	case HIDSPORB_FEATURE_PACKET_ID:
+	// Get/set axis map, sensitivity and other stuff
+	// Copy mapping/sens/pol/gains data to user
+	// Todo: add validitation of mappings/sensitivities/etc?
+	if (Get) {
+		for (i = 0; i < ORB_NUM_AXES; i++) {
+			// Axis map
+			featureData->axis_map[i] = orbData->AxisMap[i];
+			// sensitivity
+			featureData->sensitivities[i] = orbData->sensitivities[i];
+			// polarities
+			featureData->polarities[i] = orbData->polarities[i];
+			// gains
+			featureData->gains[i] = orbData->gains[i];
+		}
+		// copy other stuff
+		featureData->use_chording = (char)(orbData->use_chording);
+		featureData->null_region = (char)(orbData->null_region);
+		featureData->precision_sensitivity = (char)(orbData->precision_sensitivity);
+		featureData->precision_gain = (char)(orbData->precision_gain);
+		featureData->precision_button_type = (char)(orbData->precision_button_type);
+		featureData->precision_button_index = (char)(orbData->precision_button_index);
+		// Print feature data
+		OrbPrintFeatureData(featureData);
+		DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): Get ORB chording %d\n", (LONG) orbData->use_chording));
+	} else {
+		// Copy mapping/sens/pol/gains data from user
+		// We don't check anything yet
+		OrbPrintFeatureData(featureData);
+		for (i = 0; i < ORB_NUM_AXES; i++) {
+			// Axis map
+			orbData->AxisMap[i] = featureData->axis_map[i];
+			// sensitivity
+			orbData->sensitivities[i] = featureData->sensitivities[i];
+			// polarities
+			orbData->polarities[i] = featureData->polarities[i];
+			// gains
+			orbData->gains[i] = featureData->gains[i];
+		}
+		orbData->use_chording = featureData->use_chording;
+		orbData->null_region = featureData->null_region;
+		orbData->precision_sensitivity = featureData->precision_sensitivity;
+		orbData->precision_gain = featureData->precision_gain;
+		orbData->precision_button_type = featureData->precision_button_type;
+		orbData->precision_button_index = featureData->precision_button_index;
+		DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): Set ORB chording %d\n", (LONG) orbData->use_chording));
+	}
+	// Indicate success
+	Irp->IoStatus.Information = len;
+	status = STATUS_SUCCESS;
+	break;
+	case HIDSPORB_CURVE_PACKET_ID:
+	status = STATUS_INVALID_PARAMETER;
+	// Get curve
+	if (Get) {
+		// Copy curve if Id is valid
+		if (OrbIsValidCurveId(curveData->curve_id)) {
+			// Copy curve to user
+			RtlMoveMemory(curveData->curve, charts[curveData->curve_id], 1024 * sizeof(USHORT));
+			// Indicate success
+			status = STATUS_SUCCESS;
+			Irp->IoStatus.Information = len;
+		}
+	} else {
+	// Set curve
+		// Check for validness
+		if (OrbIsValidCurveId(curveData->curve_id) && OrbIsValidCurve(curveData->curve)) {
+			// Copy curve
+			RtlMoveMemory(charts[curveData->curve_id], curveData->curve, 1024 * sizeof(USHORT));
+			// Indicate success
+			status = STATUS_SUCCESS;
+			Irp->IoStatus.Information = len;
+		}
+	}
+	}
+failed:
+
+	DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): exit, status %x\n", status));
+	return CompleteIrp(Irp, status, Irp->IoStatus.Information);
 }

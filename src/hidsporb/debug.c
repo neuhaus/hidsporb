@@ -4,6 +4,8 @@
 
 #include "hidsporb.h"
 
+ULONG OrbDebugLevel = ORB_DBG_ALL;
+
 #if DBG
 
 static PCHAR PnpStrings[] = {

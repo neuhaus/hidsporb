@@ -50,7 +50,7 @@ CallNextDriverWait(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	NTSTATUS status;
 
 	// Call next driver
-	//DbgOut(("CallNextDriverWait(): enter\n"));
+	//DbgOut(ORB_DBG_ALL, ("CallNextDriverWait(): enter\n"));
 	// Copy our stack location to next
 	IoCopyCurrentIrpStackLocationToNext(Irp);
 	// Initialize event for completion routine
@@ -66,7 +66,7 @@ CallNextDriverWait(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	}
 	// Get status from Irp
 	status = Irp->IoStatus.Status;
-	//DbgOut(("CallNextDriverWait(): exit %x\n", status));
+	//DbgOut(ORB_DBG_ALL, ("CallNextDriverWait(): exit %x\n", status));
 
 	return status;
 }

@@ -14,7 +14,7 @@ OrbDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PIO_STACK_LOCATION irpSp;
 	ULONG major;
 
-	DbgOut(("OrbDispatch(): enter\n"));
+	DbgOut(ORB_DBG_DISPATCH, ("OrbDispatch(): enter\n"));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
 	major = irpSp->MajorFunction;
@@ -22,17 +22,17 @@ OrbDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
 	// Fail request if can't get lock
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbDispatch(): no remove lock\n"));
+		DbgOut(ORB_DBG_DISPATCH, ("OrbDispatch(): no remove lock\n"));
 
 		return CompleteIrp(Irp, status, 0);
 	}
 	IoSkipCurrentIrpStackLocation(Irp);
 	// Call lower driver (serenum)
 	status = IoCallDriver(devExt->nextDevObj, Irp);
-	DbgOut(("OrbDispatch(): call %d, status %x\n", major, status));
+	DbgOut(ORB_DBG_DISPATCH, ("OrbDispatch(): call %d, status %x\n", major, status));
 	// Release remove lock
 	IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
-	DbgOut(("OrbDispatch(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_DISPATCH, ("OrbDispatch(): exit, status %x\n", status));
 
 	return status;
 }

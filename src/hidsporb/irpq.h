@@ -20,4 +20,4 @@ VOID
 OrbFlushQueue(IN PDEVICE_EXTENSION devExt, NTSTATUS status);
 
 VOID
-OrbCompletePacket(IN PDEVICE_EXTENSION devExt);
+OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt);

@@ -17,7 +17,7 @@ OrbPower(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// If the device has been removed, the driver should not pass 
 	// the IRP down to the next lower driver.
 	//
-	DbgOut(("OrbDispatchPower(): enter"));
+	DbgOut(ORB_DBG_ALL, ("OrbDispatchPower(): enter"));
     
 	if (devExt->Removed) {
 		PoStartNextPowerIrp(Irp);

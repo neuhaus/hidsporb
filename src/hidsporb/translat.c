@@ -5,7 +5,7 @@
 #include "hidsporb.h"
 
 ULONG
-OrbLogicalAxisValue(IN PDEVICE_EXTENSION devExt,
+OrbLogicalAxisValue(IN PORB_DATA orbData,
 		IN ULONG index,
 		IN ULONG use_precision)
 {
@@ -19,11 +19,11 @@ OrbLogicalAxisValue(IN PDEVICE_EXTENSION devExt,
 	const LONG Scale = 1000;
 
 	// Get Axis value
-	base = devExt->Axes[devExt->AxisMap[index]];
+	base = orbData->Axes[orbData->AxisMap[index]];
 	// Get gain value
-	this_axis_gain = use_precision ? devExt->precision_gain : devExt->gains[index];
+	this_axis_gain = use_precision ? orbData->precision_gain : orbData->gains[index];
 	// Get sensitivity value
-	sensitivity = use_precision ? devExt->precision_sensitivity : devExt->sensitivities[index];
+	sensitivity = use_precision ? orbData->precision_sensitivity : orbData->sensitivities[index];
 	// figure the gain multiplier.  This is an odd beastie.  Basically,
 	//at a gain of 50, the scale is even.  At higher levels of gain, the signal
 	//is "amplified" so that at gain = 100, values are multiplied by 5.  At
@@ -48,7 +48,7 @@ OrbLogicalAxisValue(IN PDEVICE_EXTENSION devExt,
 		with_gain = 1023;
 	}
 	// flop according to polarity
-	switch (devExt->polarities[index]) {
+	switch (orbData->polarities[index]) {
 	case HIDSPORB_POLARITY_NEGATIVE:
 		with_gain = (1023 - with_gain);
 		break;
@@ -65,26 +65,26 @@ OrbLogicalAxisValue(IN PDEVICE_EXTENSION devExt,
 }
 
 USHORT
-OrbMapButtons(IN PDEVICE_EXTENSION devExt)
+OrbMapButtons(IN PORB_DATA orbData)
 {
 	int chord_page;
 	USHORT result = 0;
 	int i;
 
-	if (devExt->use_chording) {
-		chord_page = ((devExt->buttons[1] != 0) ? 2 : 0) +
-				((devExt->buttons[0] != 0) ? 1 : 0);
+	if (orbData->use_chording) {
+		chord_page = ((orbData->buttons[1]) ? 2 : 0) +
+				((orbData->buttons[0]) ? 1 : 0);
 
 	for (i = ORB_NUM_PHYS_BUTTONS - 2; i > 1; --i) {
-		result <<= 1;
-		result |= (devExt->buttons[i] != 0) ? 1 : 0;
+		// result <<= 1;
+		result |= (orbData->buttons[i]) ? (1 << i) : 0;
 	}
 
 	result <<= (chord_page * 4);
     	} else {
 	//loops seemed to work very strangely, here, so we'll go the brute-force
 	//way...
-#define PHYSICAL_BUTTON( x ) ((devExt->buttons[x] != 0 ) ? 1 : 0)
+#define PHYSICAL_BUTTON( x ) ((orbData->buttons[x]) ? 1 : 0)
 	result = PHYSICAL_BUTTON( 0 ) |
 	( PHYSICAL_BUTTON( 1 ) << 1 ) |
 	( PHYSICAL_BUTTON( 2 ) << 2 ) |

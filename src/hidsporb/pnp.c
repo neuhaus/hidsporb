@@ -19,12 +19,13 @@ NTSTATUS
 OrbAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT fdo)
 {
 	PDEVICE_EXTENSION devExt;
+	PORB_DATA orbData;
 	NTSTATUS status = STATUS_SUCCESS;
 	ULONG i;
 
 	PAGED_CODE();
 
-	DbgOut(("OrbAddDevice(): enter\n"));
+	DbgOut(ORB_DBG_PNP, ("OrbAddDevice(): enter\n"));
 
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(fdo);
 
@@ -63,36 +64,37 @@ OrbAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT fdo)
 	devExt->readIrp = IoAllocateIrp(devExt->nextDevObj->StackSize + 1, FALSE);
 	// Fail if we couldn't
 	if (devExt->readIrp == NULL) {
-		DbgOut(("OrbAddDevice(): cant alloc Irp\n"));
+		DbgOut(ORB_DBG_PNP, ("OrbAddDevice(): cant alloc Irp\n"));
 
 		return STATUS_INSUFFICIENT_RESOURCES;
 	}
 
+	// Get Orb data
+	orbData = GET_ORB_DATA(devExt);
 	// Initialize device mapping fields
 	for (i = 0; i < ORB_NUM_AXES; i++) {
-		devExt->AxisMap[i] = i;
-		devExt->sensitivities[i] = 0;
-		devExt->polarities[i] = HIDSPORB_POLARITY_POSITIVE;
-		devExt->gains[i] = 50;
+		orbData->AxisMap[i] = i;
+		orbData->sensitivities[i] = 0;
+		orbData->polarities[i] = HIDSPORB_POLARITY_POSITIVE;
+		orbData->gains[i] = 50;
 	}
 
-	devExt->use_chording = FALSE;
-	devExt->new_null_region_pending = FALSE;
-	devExt->null_region = 0;
+	orbData->use_chording = TRUE;
+	orbData->new_null_region_pending = FALSE;
+	orbData->null_region = 0;
 
 	// precision settings
-	devExt->precision_sensitivity = 0;
-	devExt->precision_gain = 50;
-	devExt->precision_button_type = HIDSPORB_BUTTON_TYPE_NONE;
-	devExt->precision_button_index = 0;
-
+	orbData->precision_sensitivity = 0;
+	orbData->precision_gain = 50;
+	orbData->precision_button_type = HIDSPORB_BUTTON_TYPE_NONE;
+	orbData->precision_button_index = 0;
 	// OK, we're ready to go!
 	fdo->Flags &= ~DO_DEVICE_INITIALIZING;
 	devExt->nextDevObj->Flags &= ~DO_DEVICE_INITIALIZING;
-	DbgOut(("OrbAddDevice: %p to %p->%p \n", fdo, 
+	DbgOut(ORB_DBG_PNP, ("OrbAddDevice: %p to %p->%p \n", fdo, 
 			devExt->nextDevObj,
 			fdo));
-	DbgOut(("OrbAddDevice(): exit\n"));
+	DbgOut(ORB_DBG_PNP, ("OrbAddDevice(): exit\n"));
 
 	return STATUS_SUCCESS;
 }
@@ -111,13 +113,13 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Get stack location & function code
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
 	func = irpSp->MinorFunction;
-	DbgOut(("OrbPnp(): enter %s\n", PnpToString(func)));
+	DbgOut(ORB_DBG_PNP, ("OrbPnp(): enter %s\n", PnpToString(func)));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	// Acquire remove lock
 	status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
 	// If we can't get lock device is removed
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbPnp(): cant get removelock\n"));
+		DbgOut(ORB_DBG_PNP, ("OrbPnp(): cant get removelock %x\n", status));
 		goto failed;
 	}
 	switch (func) {
@@ -128,6 +130,9 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		status = OrbRemoveDevice(devObj, Irp);
 		break;
 	case IRP_MN_SURPRISE_REMOVAL:
+		// Note, we must handle this for upcoming USB/Serial ORB support
+		//devExt->fSurpriseRemoved = TRUE;
+		//or devExt->Removed = TRUE;
 		Irp->IoStatus.Status = STATUS_SUCCESS;
 		status = CallNextDriver(devExt->nextDevObj, Irp);
 		break;
@@ -147,7 +152,7 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
 	}
 failed:
-	DbgOut(("OrbPnp(): exit %s, status %x\n", PnpToString(func), status));
+	DbgOut(ORB_DBG_PNP, ("OrbPnp(): exit %s, status %x\n", PnpToString(func), status));
 
 	return status;
 }
@@ -159,7 +164,7 @@ OrbStartDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PDEVICE_EXTENSION devExt;
 	NTSTATUS status;
 
-	DbgOut(("OrbStartDevice(): enter\n"));
+	DbgOut(ORB_DBG_PNP, ("OrbStartDevice(): enter\n"));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	// Set up stack for call
 	Irp->IoStatus.Status = STATUS_SUCCESS;
@@ -177,7 +182,7 @@ OrbStartDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 			devExt->Removed = FALSE;
 		}
 	}
-	DbgOut(("OrbStartDevice(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_PNP, ("OrbStartDevice(): exit, status %x\n", status));
 
 	//
 	// We must now complete the IRP, since we stopped it in the
@@ -194,7 +199,7 @@ OrbRemoveDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PDEVICE_EXTENSION devExt;
 	NTSTATUS status;
 
-	DbgOut(("OrbRemoveDevice(): enter\n"));
+	DbgOut(ORB_DBG_PNP, ("OrbRemoveDevice(): enter\n"));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	// Bug fix for IRP_MN_*_REMOVE stuff
 	devExt->Removed = TRUE;
@@ -210,7 +215,7 @@ OrbRemoveDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	IoSkipCurrentIrpStackLocation(Irp);
 	// Call lower driver
 	status = IoCallDriver(devExt->nextDevObj, Irp);
-	DbgOut(("OrbRemoveDevice(): exit %x\n", status));
+	DbgOut(ORB_DBG_PNP, ("OrbRemoveDevice(): exit %x\n", status));
 
 	return status;
 }

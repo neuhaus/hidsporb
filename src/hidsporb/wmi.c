@@ -15,11 +15,11 @@ OrbSystemControl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PAGED_CODE();
 
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
-	DbgOut(("OrbDispatchSysControl(): enter"));
+	DbgOut(ORB_DBG_ALL, ("OrbDispatchSysControl(): enter"));
 	IoSkipCurrentIrpStackLocation(Irp);
 	// Call root bus driver
 	status = IoCallDriver(devExt->nextDevObj, Irp);
-	DbgOut(("OrbDispatchSysControl(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_ALL, ("OrbDispatchSysControl(): exit, status %x\n", status));
 
 	return status;
 }

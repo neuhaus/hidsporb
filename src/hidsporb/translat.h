@@ -6,9 +6,9 @@
 //
 
 ULONG
-OrbLogicalAxisValue(IN PDEVICE_EXTENSION devExt,
+OrbLogicalAxisValue(IN PORB_DATA orbData,
 		IN ULONG index,
 		IN ULONG use_precision);
 
 USHORT
-OrbMapButtons(IN PDEVICE_EXTENSION devExt);
+OrbMapButtons(IN PORB_DATA orbData);

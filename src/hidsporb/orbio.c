@@ -20,7 +20,7 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	SERIAL_TIMEOUTS timeouts;
 	NTSTATUS status;
 
-	DbgOut(("OrbInitComPort(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbInitComPort(): enter\n"));
 	// Phase 1
 	// Set wait mask to zero
 	// Initialize port
@@ -30,7 +30,7 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetTimeouts(devObj, &timeouts);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInitComPort(): failed to set timeouts\n"));
+		DbgOut(ORB_DBG_SER, ("OrbInitComPort(): failed to set timeouts\n"));
 		goto failed;
 	}
 	// Initialize handflow
@@ -42,14 +42,14 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetHandFlow(devObj, &handFlow);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInitComPort(): failed to set hand flow\n"));
+		DbgOut(ORB_DBG_SER, ("OrbInitComPort(): failed to set hand flow\n"));
 		goto failed;
 	}
 	// Power down
 	status = OrbPowerDown(devObj);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInitComPort(): failed to power down\n"));
+		DbgOut(ORB_DBG_SER, ("OrbInitComPort(): failed to power down\n"));
 		goto failed;
 	}
 	// Wait a bit
@@ -63,7 +63,7 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetBaudRate(devObj, &baudRate);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInitComPort(): failed to set baud rate\n"));
+		DbgOut(ORB_DBG_SER, ("OrbInitComPort(): failed to set baud rate\n"));
 		goto failed;
 	}
 	// Initialize line control
@@ -77,7 +77,7 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetLineControl(devObj, &lineControl);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbInitComPort(): failed to set line control\n"));
+		DbgOut(ORB_DBG_SER, ("OrbInitComPort(): failed to set line control\n"));
 		goto failed;
 	}
 	// Flush buffers
@@ -87,9 +87,10 @@ OrbInitComPort(IN PDEVICE_OBJECT devObj)
 	status = OrbPowerUp(devObj);
 	// Wait a bit
 	KeStallExecutionProcessor(1500);
+	//KeDelayExecutionThread(KernelMode, FALSE, 1500 * 10);
 	// Now, Orb is powered up and working
 failed:
-	DbgOut(("OrbInitComPort(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbInitComPort(): exit, status %x\n", status));
 
 	return status;
 }
@@ -100,20 +101,20 @@ OrbPowerUp(IN PDEVICE_OBJECT devObj)
 {
 	NTSTATUS status;
 
-	DbgOut(("OrbPowerUp(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbPowerUp(): enter\n"));
 	// Phase 1
 	// Clear DTR
 	status = OrbSerClrDtr(devObj);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbPowerUp(): clear DTR failed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbPowerUp(): clear DTR failed\n"));
 		goto failed;
 	}
 	// Clear RTS
 	status = OrbSerClrRts(devObj);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbPowerUp(): clear RTS failed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbPowerUp(): clear RTS failed\n"));
 		goto failed;
 	}
 	// Delay 200ms
@@ -123,7 +124,7 @@ OrbPowerUp(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetDtr(devObj);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbPowerUp(): set DTR failed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbPowerUp(): set DTR failed\n"));
 		goto failed;
 	}
 	// Wait a bit
@@ -132,13 +133,13 @@ OrbPowerUp(IN PDEVICE_OBJECT devObj)
 	status = OrbSerSetRts(devObj);
 	// Fail if no success
 	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbPowerUp(): set RTS failed\n"));
+		DbgOut(ORB_DBG_SER, ("OrbPowerUp(): set RTS failed\n"));
 		goto failed;
 	}
 	// Wait a bit
 	KeStallExecutionProcessor(200);
 failed:
-	DbgOut(("OrbPowerUp(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbPowerUp(): exit, status %x\n", status));
 
 	return status;
 }
@@ -150,7 +151,7 @@ OrbPowerDown(IN PDEVICE_OBJECT devObj)
 {
 	NTSTATUS status;
 
-	DbgOut(("OrbPowerDown(): enter\n"));
+	DbgOut(ORB_DBG_SER, ("OrbPowerDown(): enter\n"));
 	// Set DTR
 	status = OrbSerSetDtr(devObj);
 	// Clear RTS
@@ -158,69 +159,8 @@ OrbPowerDown(IN PDEVICE_OBJECT devObj)
 	// Flush buffers
 	status = OrbSerFlush(devObj,
 			SERIAL_PURGE_TXABORT | SERIAL_PURGE_RXABORT | SERIAL_PURGE_RXCLEAR | SERIAL_PURGE_TXCLEAR);
-	DbgOut(("OrbPowerDown(): exit, status %x\n", status));
+	DbgOut(ORB_DBG_SER, ("OrbPowerDown(): exit, status %x\n", status));
 
 	return status;
 }
 
-// Detect ORB
-NTSTATUS
-OrbDetect(IN PDEVICE_OBJECT devObj)
-{
-	CHAR buffer[256], c;
-	ULONG nRead, i;
-	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
-	SERIAL_TIMEOUTS timeouts;
-	PIRP Irp;
-
-	DbgOut(("OrbDetect(): enter\n"));
-	// Allocate Irp
-	Irp = IoAllocateIrp(devObj->StackSize + 1, FALSE);
-	// Fail if couldn't allocate
-	if (Irp == NULL) {
-		DbgOut(("OrbDetect(): cant alloc Irp\n"));
-		goto failed;
-	}
-	timeouts.ReadIntervalTimeout = MAXULONG;
-	timeouts.ReadTotalTimeoutMultiplier = MAXULONG;
-	timeouts.ReadTotalTimeoutConstant = 200;
-	status = OrbSerSetTimeouts(devObj, &timeouts);
-	// Fail if no success
-	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbDetect(): failed timeout\n"));
-		goto failed;
-	}
-	// Write something
-	status = OrbSerWriteChar(devObj, Irp, '\0d');
-	// Fail if no success
-	if (!NT_SUCCESS(status)) {
-		DbgOut(("OrbDetect(): cant write\n"));
-		goto failed;
-	}
-	// Set up first read call
-	nRead = 0;
-	status = OrbSerReadChar(devObj, Irp, &buffer[nRead]);
-	// Loop while we're reading something
-	while (NT_SUCCESS(status) && (nRead < 253)) {
-		buffer[nRead] &= 0x7f;
-		nRead++;
-		// Read next character
-		status = OrbSerReadChar(devObj, Irp, &buffer[nRead]);
-	}
-	DbgOut(("OrbDetect(): read %d bytes, status %x\n", nRead, status));
-	// Print buffer contents
-	DbgOut(("OrbDetect(): Buffer:\n"));
-	// Print buffer for debugging purposes
-	for (i = 0; i < nRead; i++) {
-		c = buffer[i];
-		if ((c >= ' ') && (c <= 126))
-			DbgOut(("%c\n", c));
-	}
-	DbgOut(("\OrbDetect(): Buffer end\n"));
-	// Free Irp
-	IoFreeIrp(Irp);
-failed:
-	DbgOut(("OrbDetect(): exit, status %x\n", status));
-
-	return status;
-}

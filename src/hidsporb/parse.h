@@ -1,39 +1,17 @@
 //
 // parse.h
 //
+// Orb generic packet parser engine
+//
 
 NTSTATUS
-OrbReadPacket(IN PDEVICE_EXTENSION devExt);
+OrbReadPacket(IN PORB_DATA orbData, IN PDEVICE_OBJECT serObj, IN PIRP readIrp);
 
 VOID
-OrbClearBuffer(IN PDEVICE_EXTENSION devExt, IN ULONG packetType);
+OrbClearBuffer(IN PORB_DATA orbData, IN ULONG packetType);
 
 VOID
-OrbParseChar(IN PDEVICE_EXTENSION devExt, IN UCHAR c);
+OrbParseCallFunc(IN PORB_DATA orbData);
 
 VOID
-OrbParsePacket(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
-
-VOID
-OrbParseReset(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
-
-VOID
-OrbXorPacket(IN PCHAR buffer, IN USHORT pktType, IN USHORT length);
-
-VOID
-OrbPrintAxes(IN PDEVICE_EXTENSION devExt);
-
-VOID
-OrbParseBallData(IN PDEVICE_EXTENSION devExt, IN PCHAR pch, IN USHORT length);
-
-VOID
-OrbParseButtonData(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
-
-VOID
-OrbParseError(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
-
-VOID
-OrbParseNullRegion(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
-
-VOID
-OrbParseTerm(IN PDEVICE_EXTENSION devExt, IN PCHAR buffer, IN USHORT length);
+OrbPrintAxesBtns(IN PORB_DATA orbDate);
