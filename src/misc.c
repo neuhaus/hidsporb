@@ -8,7 +8,7 @@
 
 // Complete Irp
 NTSTATUS
-CompleteIrp(IN PIRP Irp, IN NTSTATUS status, IN ULONG information)
+CompleteIrp(IN PIRP Irp, IN NTSTATUS status, IN ULONG_PTR information)
 {
 	Irp->IoStatus.Status = status;
 	Irp->IoStatus.Information = information;

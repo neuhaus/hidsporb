@@ -9,13 +9,13 @@
 VOID
 OrbLockPdos(IN PDEVICE_EXTENSION devExt)
 {
-  DbgOut( ORB_DBG_LOCK, ("OrbLockPdos(): getting mutex\n"));
-  ExAcquireFastMutex(&devExt->devArrayMutex);
+	DbgOut(ORB_DBG_LOCK, ("OrbLockPdos(): getting mutex\n"));
+	ExAcquireFastMutex(&devExt->devArrayMutex);
 }
 
 VOID
 OrbUnlockPdos(IN PDEVICE_EXTENSION devExt)
 {
-  DbgOut( ORB_DBG_LOCK, ("OrbUnlockPdos(): releasing mutex\n"));
-  ExReleaseFastMutex(&devExt->devArrayMutex);
+	DbgOut(ORB_DBG_LOCK, ("OrbUnlockPdos(): releasing mutex\n"));
+	ExReleaseFastMutex(&devExt->devArrayMutex);
 }

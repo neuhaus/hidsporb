@@ -22,6 +22,9 @@ OrbPortRemoval(IN PDEVICE_EXTENSION devExt, IN PORB_NOTIFY_CONTEXT ctx);
 VOID
 OrbDeletePdo(IN PPDO_EXTENSION pdevExt);
 
+VOID
+OrbMarkPdoAsRemoved(IN PPDO_EXTENSION pdevExt);
+
 ULONG
 OrbGetNextPdoNumber(IN PDEVICE_EXTENSION devExt);
 

@@ -1,8 +1,9 @@
 [Version]
 ;Signature="$WINDOWS NT$"
 Signature="$CHICAGO$"
-Class=Sample
-ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171}
+Class=OrbEnum
+;ClassGuid={78A1C341-4539-11d3-B88D-00C04FAD5171}
+ClassGuid={0B5D7C45-BADF-4ac1-A69A-9FCD03A7FE4F}
 Provider=%ORB%
 
 [DestinationDirs]

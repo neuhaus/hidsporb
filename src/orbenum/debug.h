@@ -22,6 +22,8 @@
 #define ORB_DBG_PDO     	(1 << 12)
 #define ORB_DBG_ALL 		(unsigned long) (~0L)
 
+PCHAR
+DbgSerIoctlToStr(IN ULONG ioctlCode);
 
 #endif
 #endif

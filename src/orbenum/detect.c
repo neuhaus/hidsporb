@@ -10,9 +10,6 @@
 ULONG OrbEnumNumDevices = 0;
 extern ORB_MODEL orbModels[];
 
-VOID
-OrbDeletePdo(IN PPDO_EXTENSION pdevExt);
-
 // This function is used to detect if there is ORB present
 ULONG
 OrbDetect(IN PDEVICE_OBJECT serObj)
@@ -62,7 +59,6 @@ OrbDetect(IN PDEVICE_OBJECT serObj)
 		DbgOut(ORB_DBG_DETECT, ("OrbDetect(): detected SPACEBALL\n"));
 		model = 1;
 	}
-
 	// Power down ORB
 	OrbPowerDown(serObj);
 #endif
@@ -149,6 +145,8 @@ OrbPortArrival(IN PDEVICE_EXTENSION devExt, IN PORB_NOTIFY_CONTEXT ctx)
 		DbgOut(ORB_DBG_DETECT, ("OrbPortArrival(): cant get instanceid?\n"));
 		OrbUnlockPdos(devExt);
 		pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
+		// Mark PDO as removed and delete it
+		OrbMarkPdoAsRemoved(pdevExt);
 		OrbDeletePdo(pdevExt);
 		goto cleanup;
 	}
@@ -165,7 +163,8 @@ cleanup:
 	ObDereferenceObject(fileObj);
 	// Clean up
 	OrbWakeupPort(devExt, port, ORB_DEVICE_ARRIVING);
-	// Force bus rescan if FDO has been started
+	// NOTE: ORB minibus FDO might be not started yet!
+	// Force bus rescan _only_ if FDO has been started
 	if (devExt->Started) {
 		DbgOut(ORB_DBG_DETECT, ("OrbPortArrival(): rescanning bus\n"));
 		IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
@@ -251,15 +250,14 @@ OrbPortRemoval(IN PDEVICE_EXTENSION devExt, IN PORB_NOTIFY_CONTEXT ctx)
 	IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
 	// Delete PDO if found
 	if (found) {
+		// Mark PDO as removed
+		OrbMarkPdoAsRemoved(pdevExt);
 		// Force bus rescan if FDO has been started
 		if (devExt->Started) {
 			IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
 		}
-		// Delete PDO here!
-		OrbDeletePdo(pdevExt);
 	}
 	status = STATUS_SUCCESS;
-cleanup:
 	// Clean up
 	if (port) {
 		OrbWakeupPort(devExt, port, ORB_DEVICE_REMOVING);
@@ -277,9 +275,6 @@ OrbDeletePdo(IN PPDO_EXTENSION pdevExt)
 	PDEVICE_EXTENSION devExt;
 	ULONG instanceId;
 
-	// NOTE: remove lock has been acquired after PDO has been created
-	// Release remove lock and wait for pending IRPs
-	//IoReleaseRemoveLockAndWait(&pdevExt->RemoveLock, 0);
 	// OK, we can do with PDO whatever we want
 	devExt = (PDEVICE_EXTENSION) pdevExt->fdo->DeviceExtension;
 	// Free link name buffer
@@ -288,20 +283,31 @@ OrbDeletePdo(IN PPDO_EXTENSION pdevExt)
 	serObj = pdevExt->nextDevObj;
 	// Zero next devobj
 	pdevExt->nextDevObj = NULL;
-	// Set removed so PDO will handle EjectionRelations correctly
-	pdevExt->Removed = TRUE;
-	// FIXME: Is this correct?
-	// We don't care, since PDO is being removed anyway
-	// Maybe I'll rewrite it so PDO frees PdoNumber() in _REMOVE_DEVICE
-	instanceId = pdevExt->instanceId;
-	pdevExt->instanceId = 0xffff;
 	// Dereference COM port device object
 	ObDereferenceObject(serObj);
-	// Delete device object
-	IoDeleteDevice(pdevExt->devObj);
+	// Get instance ID
+	instanceId = pdevExt->instanceId;
+	pdevExt->instanceId = 0xffff;
 	// Free instance id if any
 	if (instanceId < ORB_MAX_DEVICES) {
 		OrbFreePdoNumber(devExt, instanceId);
+	}
+	// Delete device object
+	IoDeleteDevice(pdevExt->devObj);
+}
+
+VOID
+OrbMarkPdoAsRemoved(IN PPDO_EXTENSION pdevExt)
+{
+	PDEVICE_EXTENSION devExt;
+
+	// Mark PDO as removed
+	pdevExt->Removed = TRUE;
+	// Get FDO device extension
+	devExt = (PDEVICE_EXTENSION) pdevExt->fdo->DeviceExtension;
+	// Invalidate device state _only_ if FDO has been started
+	if (devExt->Started) {
+		IoInvalidateDeviceState(pdevExt->devObj);
 	}
 }
 

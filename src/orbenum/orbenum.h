@@ -1,6 +1,11 @@
+//
+// orbenum.h
+//
+
 #include <stddef.h>
 #include <memory.h>
 #include <wdm.h>
+#include <guiddef.h>
 
 #ifndef	_ORBENUM_H_
 #define _ORBENUM_H_
@@ -10,6 +15,10 @@
 #define DOS_DEVICE_NAME		L"\\DosDevices\\OrbenumDev"
 
 #define ORBENUM_TAG		'erbO'
+
+// {0B5D7C45-BADF-4ac1-A69A-9FCD03A7FE4F}
+DEFINE_GUID(GUID_ORBENUM_BUS_TYPE,
+0xb5d7c45, 0xbadf, 0x4ac1, 0xa6, 0x9a, 0x9f, 0xcd, 0x3, 0xa7, 0xfe, 0x4f);
 
 // There can be 16 Orbs/Spaceballs attached to system
 // maybe too many? ;-)))
@@ -133,6 +142,15 @@ OrbPdoQueryHardwareId(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
 OrbPdoQueryDeviceText(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
+
+NTSTATUS
+OrbPdoQueryPnpState(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
+
+NTSTATUS
+OrbPdoQueryCaps(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
+
+NTSTATUS
+OrbPdoQueryBusInfo(IN PPDO_EXTENSION pdevExt, IN PIRP Irp);
 
 NTSTATUS
 OrbPdoCallComplete(IN PDEVICE_OBJECT fdo, IN PIRP fdoIrp, PVOID nothing);
