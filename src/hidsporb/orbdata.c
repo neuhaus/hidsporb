@@ -1,4 +1,5 @@
 #include "orbdata.h"
+#include "debug.h"
 
 void
 OrbDataSetPhysicalAxis( PORB_DATA orb_data,
@@ -17,11 +18,30 @@ OrbDataSetPhysicalAxes( PORB_DATA orb_data,
 			LONG ry,
 			LONG rz )
 {
+#if DBG
+#define CLIP_AXIS( val, label ) \
+{\
+  if ( val > 1023 ) \
+    { \
+      DbgOut( ORB_DBG_DATA, \
+	      ("OrbDataSetPhysicalAxis: Clipping axis %s from value %d", label, val )); \
+											  val = 1023; \
+    } \
+} 
+#else
+#define CLIP_AXIS( val, label ) 
+#endif
+  // CLIP_AXIS( tx, "tx" );
   orb_data->Axes[ AXIS_TX ] = tx;
+  //  CLIP_AXIS( ty, "ty" );
   orb_data->Axes[ AXIS_TY ] = ty;
+  //  CLIP_AXIS( tz, "tz" );
   orb_data->Axes[ AXIS_TZ ] = tz;
+  //  CLIP_AXIS( rx, "rx" );
   orb_data->Axes[ AXIS_RX ] = rx;
+  //  CLIP_AXIS( ry, "ry" );
   orb_data->Axes[ AXIS_RY ] = ry;
+  //  CLIP_AXIS( rz, "rz" );
   orb_data->Axes[ AXIS_RZ ] = rz;
 }
 

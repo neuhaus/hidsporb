@@ -27,6 +27,7 @@ typedef struct _ORB_DATA {
 	CHAR		packetBuffer[ORB_PACKET_BUFFER_LENGTH]; // packet buffer
 	USHORT		bufferCursor;				// Current position in buffer
 	ULONG		numPackets[ORB_MAX_PACKET_TYPE];	// Packets stat data
+        CHAR            in_escape_mode; //used in parsing 3003/4000 data
 	// Parse function & context
 	// Context for packet parsing functions
 	PVOID			parsePacketContext;

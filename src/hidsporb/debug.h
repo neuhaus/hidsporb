@@ -32,6 +32,8 @@
 #define ORB_DBG_SBALL   (1 << 11)
 // SpaceOrb-specific parsing
 #define ORB_DBG_SORB    (1 << 12)
+// data parsing
+#define ORB_DBG_DATA    (1 << 13)
 //
 #define	ORB_DBG_ALL	(ULONG) (~0L)
 

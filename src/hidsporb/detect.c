@@ -8,7 +8,7 @@
 // List of supported models
 HIDSPORB_MODEL orbModels[ORB_NUM_MODELS] = {
 { L"*SPC0360", "SpaceOrb 360", SOrbDetect, SOrbInit, SOrbCleanup },
-{ L"*SPC3003", "SpaceBall 3003", NULL, NULL, NULL }
+{ L"*SPC3003", "SpaceBall 3003", SBallDetect, SBallInit, SBallCleanup }
 };
 // Note for SpaceBall 3003 functions are null
 // add them when they're complete

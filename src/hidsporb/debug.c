@@ -4,4 +4,4 @@
 
 #include "hidsporb.h"
 
-ULONG OrbDebugLevel = ORB_DBG_ALL;
+ULONG OrbDebugLevel = ORB_DBG_SBALL;

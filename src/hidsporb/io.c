@@ -116,7 +116,7 @@ OrbStopIo(IN PDEVICE_EXTENSION devExt)
 		goto exit;
 	}
 	// Tell thread to terminate
-	KeSetEvent(&devExt->threadTermEvent, FALSE, 0);
+	KeSetEvent(&devExt->threadTermEvent, TRUE, 0);
 	DbgOut(ORB_DBG_IO, ("OrbStopIo(): waiting for thread to terminate...\n"));
 	// Wait for thread termination
 	KeWaitForSingleObject(&devExt->threadTerminated, Executive, KernelMode, FALSE, NULL);
@@ -170,7 +170,7 @@ OrbReadThread(IN PDEVICE_OBJECT devObj)
 	// Cancel Irp
 	IoCancelIrp(devExt->readIrp);
 	// Indicate thread is terminated
-	KeSetEvent(&devExt->threadTerminated, 0, FALSE);
+	KeSetEvent(&devExt->threadTerminated, 0, TRUE);
 	devExt->threadStarted = FALSE;
 	// Terminate thread
 	PsTerminateSystemThread(0);

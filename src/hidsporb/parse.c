@@ -27,8 +27,10 @@ OrbReadPacket(IN PORB_DATA orbData, IN PDEVICE_OBJECT serObj, IN PIRP readIrp)
 VOID
 OrbClearBuffer(IN PORB_DATA orbData, IN ULONG packetType)
 {
-	orbData->bufferCursor = 0;
-	orbData->currPacketType = packetType;
+  DbgOut( ORB_DBG_PARSE, 
+	  ( "OrbClearBuffer: Clearing to packet type %d", packetType ));
+  orbData->bufferCursor = 0;
+  orbData->currPacketType = packetType;
 }
 
 // Call packet parsing function

@@ -286,7 +286,7 @@ OrbNotifyCheck(IN PDEVICE_OBJECT devObj)
   if ( OrbBufferContainsBallStartupString( buffer, 256 ) )
     {
       DbgOut( ORB_DBG_NOTIFY, ( "OrbNotifyCheck(): ****DETECTED SPACEBALL****" ));
-      //      model = 1; disabled to further test hidsporb driver
+      model = 1; // disabled to further test hidsporb driver
     }
   OrbPowerDown(devObj);
 failed:
