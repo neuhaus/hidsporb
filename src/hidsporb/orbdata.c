@@ -1,6 +1,24 @@
 #include "orbdata.h"
 #include "debug.h"
 
+VOID
+OrbInitData(IN PORB_DATA orbData)
+{
+	ExInitializeFastMutex(&orbData->dataMutex);
+}
+
+VOID
+OrbLockData(IN PORB_DATA orbData)
+{
+	ExAcquireFastMutex(&orbData->dataMutex);
+}
+
+VOID
+OrbUnlockData(IN PORB_DATA orbData)
+{
+	ExReleaseFastMutex(&orbData->dataMutex);
+}
+
 void
 OrbDataSetPhysicalAxis( PORB_DATA orb_data,
 			int index,
@@ -127,4 +145,3 @@ OrbDataSetPhysicalButtons12( PORB_DATA orb_data,
   orb_data->buttons[ 10 ] = button_8;
   orb_data->buttons[ 11 ] = button_8;
 }
-

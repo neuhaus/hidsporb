@@ -1,4 +1,3 @@
-#if 0
 #ifndef SETTINGS_H
 #define SETTINGS_H
 
@@ -6,66 +5,56 @@
 #include "hidsporb.h"
 #endif
 
-#define DRIVER_OBJECT_EXTENSION_REGPATH 1
+NTSTATUS
+OrbStoreRegistryPath(PDRIVER_OBJECT driverObj,
+		PUNICODE_STRING regPath);
 
-/* #define HSO_get_registry_path( driver_object ) \ */
-/*    (PUNICODE_STRING)IoGetDriverObjectExtension(driver_object, (PVOID) DRIVER_OBJECT_EXTENSION_REGPATH ) */
+// Don't forget to call this!
+void
+OrbFreeRegistryPath(void);
 
+BOOLEAN
+OrbCheckFeature(PHIDSPORB_FEATURE_DATA feature);
 
 void
-OrbStoreRegistryPath( PDRIVER_OBJECT driver_object,
-			 PUNICODE_STRING registry_path );
-
-void
-OrbRetrieveSettingsFromRegistry( PDEVICE_OBJECT device_object,
-				     PDEVICE_EXTENSION device_extension,
-				     HANDLE handle );
+OrbGetSettingsFromRegistry(PDEVICE_EXTENSION devExt, HANDLE handle);
 
 NTSTATUS
-OrbSetAxisMapping( PDEVICE_EXTENSION device_extension,
-		      LONG logical_axis_number,
-		      LONG physical_axis_number );
+OrbSetAxisMapping(PDEVICE_EXTENSION devExt,
+		ULONG logical_axis_number,
+		ULONG physical_axis_number);
 
 NTSTATUS
-OrbSetSensitivity( PDEVICE_EXTENSION device_extension,
-		      LONG logical_axis_number,
-		      LONG physical_axis_number );
+OrbSetSensitivity(PDEVICE_EXTENSION devExt,
+		ULONG logical_axis_number,
+		ULONG physical_axis_number);
 
 NTSTATUS
-OrbSetPolarity( PDEVICE_EXTENSION device_extension,
-		      LONG logical_axis_number,
-		      LONG physical_axis_number );
+OrbSetPolarity(PDEVICE_EXTENSION devExt,
+		ULONG logical_axis_number,
+		ULONG physical_axis_number);
 
 NTSTATUS
-OrbSetGain( PDEVICE_EXTENSION device_extension,
-	      LONG logical_axis_number,
-	      LONG gain );
+OrbSetGain(PDEVICE_EXTENSION devExt,
+	ULONG logical_axis_number,
+	ULONG gain);
 
 NTSTATUS
-OrbSetPrecisionSensitivity( PDEVICE_EXTENSION device_extension,
-			       LONG sensitivity );
+OrbSetPrecisionSensitivity(PDEVICE_EXTENSION devExt, ULONG sensitivity );
 
 NTSTATUS
-OrbSetPrecisionGain( PDEVICE_EXTENSION device_extension,
-			LONG gain );
+OrbSetPrecisionGain(PDEVICE_EXTENSION devExt, ULONG gain);
 
 NTSTATUS
-OrbSetPrecisionButton( PDEVICE_EXTENSION device_extension,
-			  LONG button_type,
-			  LONG button_index );
-
+OrbSetPrecisionButton(PDEVICE_EXTENSION devExt, ULONG button_type, ULONG button_index);
 
 NTSTATUS
-OrbSetChording( PDEVICE_EXTENSION device_extension,
-		  BOOLEAN use_chording );
+OrbSetChording(PDEVICE_EXTENSION devExt, BOOLEAN use_chording);
 
 NTSTATUS
-OrbSetNullRegion( PDEVICE_OBJECT device_object,
-		     int null_region );
+OrbSetNullRegion(PDEVICE_EXTENSION devExt, int null_region);
 
 NTSTATUS
-OrbSaveSettingsToRegistry( PDEVICE_EXTENSION device_extension );
+OrbSaveSettingsToRegistry(PDEVICE_EXTENSION devExt);
 
-
-#endif
 #endif

@@ -6,9 +6,7 @@
 
 // Everything is nonpaged for now
 #if 0
-#pragma alloc_text (PAGE, OrbAddDevice)
-#pragma alloc_text (PAGE, OrbDispatchPnp)
-#pragma alloc_text (PAGE, OrbDispatchSystemControl)
+#pragma alloc_text(PAGE, OrbAddDevice)
 #endif
 
 // Note
@@ -71,6 +69,8 @@ OrbAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT fdo)
 
 	// Get Orb data
 	orbData = GET_ORB_DATA(devExt);
+	// Init ORB data & fast mutex
+	OrbInitData(orbData);
 	// Initialize device mapping fields
 	for (i = 0; i < ORB_NUM_AXES; i++) {
 		orbData->AxisMap[i] = i;
@@ -78,11 +78,9 @@ OrbAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT fdo)
 		orbData->polarities[i] = HIDSPORB_POLARITY_POSITIVE;
 		orbData->gains[i] = 50;
 	}
-
 	orbData->use_chording = TRUE;
 	orbData->new_null_region_pending = FALSE;
 	orbData->null_region = 0;
-
 	// precision settings
 	orbData->precision_sensitivity = 0;
 	orbData->precision_gain = 50;
@@ -166,6 +164,7 @@ OrbStartDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 {
 	PDEVICE_EXTENSION devExt;
 	NTSTATUS status;
+	HANDLE keyHandle;
 
 	DbgOut(ORB_DBG_PNP, ("OrbStartDevice(): enter\n"));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
@@ -176,6 +175,20 @@ OrbStartDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Call lower driver
 	status = CallNextDriverWait(devExt->nextDevObj, Irp);
 	if (NT_SUCCESS(status) && NT_SUCCESS(Irp->IoStatus.Status)) {
+		// Open reg key
+		status = IoOpenDeviceRegistryKey(devExt->nextDevObj,
+						PLUGPLAY_REGKEY_DEVICE,
+						STANDARD_RIGHTS_READ,
+						&keyHandle);
+		// Fail if we couldn't open registry
+		if (!NT_SUCCESS(status)) {
+			DbgOut(ORB_DBG_PNP, ("OrbStartDevice(): failed to open registry, status %x\n", status));
+		} else {
+			// Restore ORB settings from registry
+			OrbGetSettingsFromRegistry(devExt, keyHandle);
+			// Don't forget to close key handle
+			ZwClose(keyHandle);
+		}
 		// Start I/O
 		status = OrbStartIo(devExt);
 		if (NT_SUCCESS(status)) {

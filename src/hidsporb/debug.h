@@ -5,7 +5,6 @@
 #include "debug_base.h"
 #endif
 
-#if DBG
 // PNP debugging
 #define	ORB_DBG_PNP	(1 << 0)
 // Serial I/O debugging
@@ -34,8 +33,10 @@
 #define ORB_DBG_SORB    (1 << 12)
 // data parsing
 #define ORB_DBG_DATA    (1 << 13)
-//
+// All debugging flags
 #define	ORB_DBG_ALL	(ULONG) (~0L)
+
+#if DBG
 
 #define DbgPrintAxes( level, p_orb_data ) \
   DbgOut( level, ( "Orb Axes: tx: %d; ty: %d; tz: %d; rx: %d; ry: %d; rz: %d", \

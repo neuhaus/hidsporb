@@ -252,7 +252,7 @@ OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp, ULONG reqStr)
 	PIO_STACK_LOCATION irpSp;
 	NTSTATUS status;
 	ULONG len, len1;
-	PCHAR pStr, pStr1;
+	PWCHAR pStr, pStr1;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
@@ -363,8 +363,8 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 	packet = (PHID_XFER_PACKET) Irp->UserBuffer;
 	reportId = packet->reportId;
 	// Get pointers & packet length
-	featureData = &(((PHIDSPORB_FEATURE_PACKET)(packet->reportBuffer))->feature_data );
-	curveData =  &(((PHIDSPORB_SENSITIVITY_CURVE_PACKET)( packet->reportBuffer ))->curve);
+	featureData = &(((PHIDSPORB_FEATURE_PACKET) (packet->reportBuffer))->feature_data);
+	curveData =  &(((PHIDSPORB_SENSITIVITY_CURVE_PACKET) (packet->reportBuffer))->curve);
 	len = packet->reportBufferLen;
 	DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): packet rep %p repid %d len %d\n", featureData, (ULONG) reportId, len));
 	// Check if report ID is correct
@@ -391,17 +391,18 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 	case HIDSPORB_FEATURE_PACKET_ID:
 	// Get/set axis map, sensitivity and other stuff
 	// Copy mapping/sens/pol/gains data to user
-	// Todo: add validitation of mappings/sensitivities/etc?
+	// Lock ORB data from changing
+	OrbLockData(orbData);
 	if (Get) {
 		for (i = 0; i < ORB_NUM_AXES; i++) {
 			// Axis map
-			featureData->axis_map[i] = orbData->AxisMap[i];
+			featureData->axis_map[i] = (UCHAR) orbData->AxisMap[i];
 			// sensitivity
-			featureData->sensitivities[i] = orbData->sensitivities[i];
+			featureData->sensitivities[i] = (UCHAR) orbData->sensitivities[i];
 			// polarities
-			featureData->polarities[i] = orbData->polarities[i];
+			featureData->polarities[i] = (UCHAR) orbData->polarities[i];
 			// gains
-			featureData->gains[i] = orbData->gains[i];
+			featureData->gains[i] = (UCHAR) orbData->gains[i];
 		}
 		// copy other stuff
 		featureData->use_chording = (char)(orbData->use_chording);
@@ -417,7 +418,21 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 		// Copy mapping/sens/pol/gains data from user
 		// We don't check anything yet
 		OrbPrintFeatureData(featureData);
+		// Fail if something is wrong with feature
+		if (!OrbCheckFeature(featureData)) {
+			len = 0;
+			status = STATUS_INVALID_PARAMETER;
+			// Don't forget to do this!
+			OrbUnlockData(orbData);
+			break;
+		}
+		// Now set up everything
 		for (i = 0; i < ORB_NUM_AXES; i++) {
+			OrbSetAxisMapping(devExt, i, featureData->axis_map[i]);
+			OrbSetSensitivity(devExt, i, featureData->sensitivities[i]);
+			OrbSetPolarity(devExt, i, featureData->polarities[i]);
+			OrbSetGain(devExt, i, featureData->gains[i]);
+#if 0
 			// Axis map
 			orbData->AxisMap[i] = featureData->axis_map[i];
 			// sensitivity
@@ -426,15 +441,25 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 			orbData->polarities[i] = featureData->polarities[i];
 			// gains
 			orbData->gains[i] = featureData->gains[i];
+#endif
 		}
+		OrbSetChording(devExt, featureData->use_chording);
+		OrbSetNullRegion(devExt, featureData->null_region);
+		OrbSetPrecisionSensitivity(devExt, featureData->precision_sensitivity);
+		OrbSetPrecisionGain(devExt, featureData->precision_gain);
+		OrbSetPrecisionButton(devExt, featureData->precision_button_type,
+					featureData->precision_button_index);
+#if 0
 		orbData->use_chording = featureData->use_chording;
 		orbData->null_region = featureData->null_region;
 		orbData->precision_sensitivity = featureData->precision_sensitivity;
 		orbData->precision_gain = featureData->precision_gain;
 		orbData->precision_button_type = featureData->precision_button_type;
 		orbData->precision_button_index = featureData->precision_button_index;
+#endif
 		DbgOut(ORB_DBG_FEATURE, ("OrbGetSetFeature(): Set ORB chording %d\n", (LONG) orbData->use_chording));
 	}
+	OrbUnlockData(orbData);
 	// Indicate success
 	Irp->IoStatus.Information = len;
 	status = STATUS_SUCCESS;
@@ -442,6 +467,7 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 	case HIDSPORB_CURVE_PACKET_ID:
 	status = STATUS_INVALID_PARAMETER;
 	// Get curve
+	OrbLockData(orbData);
 	if (Get) {
 		// Copy curve if Id is valid
 		if (OrbIsValidCurveId(curveData->curve_id)) {
@@ -462,6 +488,7 @@ OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get)
 			Irp->IoStatus.Information = len;
 		}
 	}
+	OrbUnlockData(orbData);
 	}
 failed:
 

@@ -217,7 +217,7 @@ PCHAR pktStr[] = {
 VOID
 SOrbParsePacket(IN PORB_DATA orbData)
 {
-	USHORT pktType;
+	ULONG pktType;
 
 	// Determine packet type
 	pktType = orbData->currPacketType;

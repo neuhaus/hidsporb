@@ -87,6 +87,7 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	PHIDSPORB_REPORT report;
 	HIDSPORB_REPORT localReport;
 	ULONG i;
+	HIDSPORB_MOUSE_REPORT mouseRep;
 
 	// Dequeue item
 	item = OrbDequeueReadReport(devExt);
@@ -94,10 +95,13 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 	if (item == NULL) {
 		return;
 	}
+	// Lock ORB mapping data
+	OrbLockData(orbData);
 	// Initialize report
 	report = item->Irp->UserBuffer;
 	RtlZeroMemory(&localReport, sizeof(HIDSPORB_REPORT));
 	// Note, we can have many reports
+#if 1
 	localReport.reportId = 1;
 	// Copy Axes
 	for (i = 0; i < ORB_NUM_AXES; i++) {
@@ -112,8 +116,21 @@ OrbCompletePacket(IN PORB_DATA orbData, IN PDEVICE_EXTENSION devExt)
 //#endif
 	// Copy report
 	RtlCopyMemory(report, &localReport, sizeof(HIDSPORB_REPORT));
+	// Unlock ORB mapping data
+	OrbUnlockData(orbData);
 	// Complete IRP
 	CompleteIrp(item->Irp, STATUS_SUCCESS, sizeof(HIDSPORB_REPORT));
+#else
+	// Mouse TLC
+	// Mouse works, now we have ot translate it to move smoothly
+	mouseRep.reportId = 3;
+	mouseRep.buttons = OrbMapButtons(orbData) & 7;
+	mouseRep.Axes[0] = OrbLogicalAxisValue(orbData, 0, 0) / 8;
+	mouseRep.Axes[1] = OrbLogicalAxisValue(orbData, 1, 0) / 8;
+	OrbUnlockData(orbData);
+	RtlCopyMemory(report, &mouseRep, sizeof(HIDSPORB_MOUSE_REPORT));
+	CompleteIrp(item->Irp, STATUS_SUCCESS, sizeof(HIDSPORB_MOUSE_REPORT));
+#endif
 	// Free queue item
 	ExFreePool(item);
 }

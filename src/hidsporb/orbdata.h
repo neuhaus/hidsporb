@@ -66,8 +66,19 @@ typedef struct _ORB_DATA {
 	// what button index for precision
 	int precision_button_index;
 	BOOLEAN new_null_region_pending;
+	// Mutex protection
+	FAST_MUTEX dataMutex;
 } ORB_DATA, *PORB_DATA;
 
+VOID
+OrbInitData(IN PORB_DATA orbData);
+
+// Locking support
+VOID
+OrbLockData(IN PORB_DATA orbData);
+
+VOID
+OrbUnlockData(IN PORB_DATA orbData);
 
 void
 OrbDataSetPhysicalAxis( PORB_DATA orb_data,

@@ -1,3 +1,8 @@
+//
+// validity.c
+// axis, gain, sensitivity, etc validity checks
+//
+
 #include "hidsporb.h"
 
 int
@@ -14,49 +19,49 @@ in_inclusive_range( int value, int min, int max )
 }
 
 int
-is_valid_axis( int axis )
+OrbIsValidAxis( int axis )
 {
   return in_inclusive_range( axis, 0, 5 );
 }
  
 int
-is_valid_sensitivity( int sensitivity )
+OrbIsValidSensitivity( int sensitivity )
 {
   return in_inclusive_range( sensitivity, 0, 5 );
 }
 
 int 
-is_valid_polarity( int polarity )
+OrbIsValidPolarity( int polarity )
 {
   return in_inclusive_range( polarity, 0, 2 );
 }
 
 int
-is_valid_gain( int gain )
+OrbIsValidGain( int gain )
 {
   return in_inclusive_range( gain, 0, 100 );
 }
 
 int
-is_valid_button_type( int button_type )
+OrbIsValidButtonType( int button_type )
 {
   return in_inclusive_range( button_type, 0, 2 );
 }
 
 int
-is_valid_physical_button_index( int button_index ) 
+OrbIsValidPhysicalButtonIndex( int button_index ) 
 {
   return in_inclusive_range( button_index, 0, 5 );
 }
 
 int
-is_valid_logical_button_index( int button_index )
+OrbIsValidLogicalButtonIndex( int button_index )
 {
   return in_inclusive_range( button_index, 0, 15 );
 }
 
 int 
-is_valid_null_region( int region )
+OrbIsValidNullRegion( int region )
 {
   return in_inclusive_range( region, 0, 127 );
 }

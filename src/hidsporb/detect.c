@@ -76,7 +76,7 @@ OrbGetPnpId(IN PDEVICE_OBJECT devObj, OUT PWCHAR *pnpId)
 	}
 	DbgOut(ORB_DBG_DETECT, ("OrbGetPnpId(): returned ID: %ws\n", Irp->IoStatus.Information));
 	//ExFreePool((PVOID) Irp->IoStatus.Information);
-	*pnpId = Irp->IoStatus.Information;
+	*pnpId = (PWCHAR) Irp->IoStatus.Information;
 freeirp:
 	// Free Irp
 	IoFreeIrp(Irp);

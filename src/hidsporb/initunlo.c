@@ -38,6 +38,8 @@ DriverEntry(IN PDRIVER_OBJECT DriverObject, IN PUNICODE_STRING RegistryPath)
 	//
 	// Create dispatch points for the IRPs.
 	//
+	// Save registry path
+	OrbStoreRegistryPath(DriverObject, RegistryPath);
 
 	DriverObject->DriverUnload			= OrbUnload;
 	DriverObject->MajorFunction[IRP_MJ_PNP]		= OrbPnp;
@@ -72,6 +74,8 @@ OrbUnload(IN PDRIVER_OBJECT DriverObject)
 	//
 
 	ASSERT(DriverObject->DeviceObject == NULL);
+	// Free key names
+	OrbFreeRegistryPath();
 	DbgOut(ORB_DBG_ALL, ("OrbUnload()\n"));
 
 	return;

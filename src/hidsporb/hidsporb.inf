@@ -80,11 +80,12 @@ ExcludeFromSelect = GamePort\Joystick
 ;
 ;Device Name   Install Section     PnP ID
 ;
-%Joystick%=    Joystick.Inst,      SERENUM\SPC0360
+%Joystick%=    Joystick.Inst,      *SPC0360
 
 [Joystick.Inst]
 CopyFiles = CopyFilesSYS, CopyFilesDLL
-AddReg    = Joystick.AddReg, AddReg.Vendor_Driver
+AddReg    = Joystick.AddReg
+;, AddReg.Vendor_Driver
 
 [Joystick.Inst.NT]
 CopyFiles = CopyFilesSYS, CopyFilesDLL
@@ -100,15 +101,15 @@ AddService = HidSporb,%SPSVCINST_ASSOCSERVICE%,Vendor_Service_Inst
 
 [CopyFilesSYS]
 hidsporb.sys
-HidClass.sys
-HidParse.sys
+;HidClass.sys
+;HidParse.sys
 
 [CopyFilesDLL]
-Hid.dll
+;Hid.dll
 
-[AddReg.Vendor_Driver]
-HKR,,DevLoader,,*ntkern
-HKR,,NTMPDriver,,"hidsporb.sys"
+;[AddReg.Vendor_Driver]
+;HKR,,DevLoader,,*ntkern
+;HKR,,NTMPDriver,,"hidsporb.sys"
 
 [Vendor_Service_Inst]
 DisplayName     = %SvcDesc%
@@ -124,10 +125,8 @@ SPSVCINST_ASSOCSERVICE= 0x00000002
 KEY_OEM="SYSTEM\CurrentControlSet\Control\MediaProperties\PrivateProperties\Joystick\OEM"
 
 ;localized strings
-VENDOR          = "Winged Yak Productions"
+VENDOR          = "Two Guys, Inc."
 ; DiskId          = "Vendor Joystick Installation and Drivers Disk"
 
-SvcDesc         = "Winged Yak: Beta SpaceOrb 360 Driver"
+SvcDesc         = "Two Guys, Inc.: Beta SpaceOrb 360 Driver"
 Joystick        = "Spacetec SpaceOrb 360"
-
-
