@@ -155,7 +155,8 @@ OrbPdoStart(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   NTSTATUS status;
 
   DbgOut(("OrbPdoStart(): enter\n"));
-  status = CallNextDriverWait(pdo, Irp);
+  // status = CallNextDriverWait(pdo, Irp);
+  status = STATUS_SUCCESS;
   if (NT_SUCCESS(status) && NT_SUCCESS(Irp->IoStatus.Status)) 
     {
       // Start and do whatever we want
@@ -188,20 +189,26 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   PIRP Irp1;
 
   DbgOut(("OrbPdoRemove(): enter\n"));
-  //
+  // Get PDO dev ext
   pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
+  // Get root FDO dev ext
   devExt = (PDEVICE_EXTENSION) pdevExt->fdo->DeviceExtension;
+  // Lock PDO array
   OrbLockPdos(devExt);
   // Remove PDO from array
-  devExt->devArray[0] = NULL;
+  DbgOut(("OrbPdoRemove(): numdevice %d\n", pdevExt->numDevice));
+  devExt->devArray[pdevExt->numDevice] = NULL;
   devExt->numDevices--;
   OrbUnlockPdos(devExt);
   // Wait for pending I/O to complete
   IoReleaseRemoveLockAndWait(&pdevExt->RemoveLock, Irp);
+#if 0
   Irp->IoStatus.Status = STATUS_SUCCESS;
   IoSkipCurrentIrpStackLocation(Irp);
   // Call serial driver
   status = IoCallDriver(pdevExt->nextDevObj, Irp);
+#endif
+  status = CompleteIrp(Irp, STATUS_SUCCESS, 0);
   // Detach and delete device object
 #if 0
   Irp1 = IoAllocateIrp(pdevExt->nextDevObj->StackSize + 1, FALSE);
@@ -226,8 +233,13 @@ OrbPdoRemove(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
       IoFreeIrp(Irp1);
     }
 #endif
-  IoDetachDevice(pdevExt->nextDevObj);
-  ObDereferenceObject(pdevExt->file);
+  //IoDetachDevice(pdevExt->nextDevObj);
+  // Just close COM port
+  //OrbSerClosePort(pdevExt->nextDevObj);
+  //ObDereferenceObject(pdevExt->fileObj);
+  ObDereferenceObject(pdevExt->nextDevObj);
+  // Don't forget to free linkName buffer!!!
+  ExFreePool(pdevExt->linkName);
   IoDeleteDevice(pdo);
   DbgOut(("OrbPdoRemove(): exit %x\n", status));
 
@@ -345,13 +357,18 @@ NTSTATUS
 OrbPdoQueryDeviceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 {
   PIO_STACK_LOCATION irpSp;
+  PPDO_EXTENSION pdevExt;
   NTSTATUS status;
   PWCHAR id;
   ULONG len, size;
 
   DbgOut(("OrbPdoQueryDevId(): enter\n"));
+  // Get PDO dev ext
+  pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
+  // Get current IRP stack location
   irpSp = IoGetCurrentIrpStackLocation(Irp);
-  len = wcslen(L"ORBENUM\\*FOOBAR");
+  //len = wcslen(L"ORBENUM\\*FOOBAR");
+  len = wcslen(pdevExt->deviceId);
   size = (len + 2) * sizeof(WCHAR);
   id = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (id == NULL) 
@@ -360,7 +377,8 @@ OrbPdoQueryDeviceId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
-  wcscpy(id, L"ORBENUM\\*FOOBAR");
+  //wcscpy(id, L"ORBENUM\\*FOOBAR");
+  wcscpy(id, pdevExt->deviceId);
   id[len+1] = 0;
   DbgOut(("OrbPdoQueryDevId(): exit\n"));
 
@@ -371,13 +389,18 @@ NTSTATUS
 OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 {
   PIO_STACK_LOCATION irpSp;
+  PPDO_EXTENSION pdevExt;
   NTSTATUS status;
   PWCHAR id;
   ULONG len, size;
 
   DbgOut(("OrbPdoQueryHardId(): enter\n"));
+  // Get PDO dev ext
+  pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
+  // Get current IRP stack location
   irpSp = IoGetCurrentIrpStackLocation(Irp);
-  len = wcslen(L"*FOOBAR");
+  //len = wcslen(L"*FOOBAR");
+  len = wcslen(pdevExt->hardwareId);
   size = (len + 2) * sizeof(WCHAR);
   id = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (id == NULL) 
@@ -386,7 +409,8 @@ OrbPdoQueryHardwareId(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
-  wcscpy(id, L"*FOOBAR");
+  //wcscpy(id, L"*FOOBAR");
+  wcscpy(id, pdevExt->hardwareId);
   // Add null terminator
   id[len+1] = 0;
   DbgOut(("OrbPdoQueryHardId(): exit\n"));
@@ -398,11 +422,15 @@ NTSTATUS
 OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 {
   PIO_STACK_LOCATION irpSp;
+  PPDO_EXTENSION pdevExt;
   NTSTATUS status;
   PWCHAR text;
   ULONG len, size;
 
   DbgOut(("OrbPdoQueryDeviceText(): enter\n"));
+  // Get PDO dev ext
+  pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
+  // Get current IRP stack location
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   if (irpSp->Parameters.QueryDeviceText.DeviceTextType != DeviceTextDescription) 
     {
@@ -416,7 +444,8 @@ OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
     }
 #define	DUMMY_VENDOR	L"Foobar electonics "
 #define	DUMMY_MODEL	L"Foobar dumb device"
-  len = wcslen(DUMMY_MODEL) + 8;
+  //len = wcslen(DUMMY_MODEL) + 8;
+  len = wcslen(pdevExt->model);
   size = (len + 2) * sizeof(WCHAR);
   text = ExAllocatePoolWithTag(PagedPool, size, 'ZbrO');
   if (text == NULL) 
@@ -425,7 +454,8 @@ OrbPdoQueryDeviceText(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
 
       return CompleteIrp(Irp, STATUS_INSUFFICIENT_RESOURCES, 0);
     }
-  swprintf(text, L"%ws", DUMMY_MODEL);
+  //swprintf(text, L"%ws", DUMMY_MODEL);
+  swprintf(text, L"%ws", pdevExt->model);
   DbgOut(("OrbPdoQueryDeviceText(): exit, text %ws\n", text));
 
  complete:

@@ -29,7 +29,7 @@ OrbEnumDispatch(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 
 	  return CompleteIrp(Irp, status, 0);
 	}
-#if 1
+#if 0
       // These two are special:
       // since we already opened COM port, IRP_MJ_CREATE will fail
       if ((major == IRP_MJ_CREATE) || (major == IRP_MJ_CLOSE)) 

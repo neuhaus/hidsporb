@@ -53,8 +53,10 @@ typedef struct _PDO_EXTENSION {
 	PDEVICE_OBJECT	fdo;		// our bus FDO
 	IO_REMOVE_LOCK	RemoveLock;	// Remove lock
 	// END OF common extension block
-	PFILE_OBJECT	file;		// Pointer to file object from IoGetDevObP
+	PFILE_OBJECT	fileObj;	// Pointer to file object from IoGetDevObP
+	PWCHAR		linkName;	// Link name
 	ULONG		numDevice;	// Device number for PNP (instance Id)
+        PWCHAR		model;		// Model (e.g. 'SpaceOrb 360')
 	PWCHAR		hardwareId;	// Hardware ID (e.g. *SPC0360)
 	PWCHAR		deviceId;	// Device ID (e.g. ORBENUM\*FOOBAR)
 } PDO_EXTENSION, *PPDO_EXTENSION;
