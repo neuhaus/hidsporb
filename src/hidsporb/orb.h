@@ -5,8 +5,12 @@
 //
 
 #define	ORB_NUM_AXES		6
-//TODO: this will have to be changed to 12 for 4k inclusion.
+
+//TODO: watch areas using ORB_NUM_PHYS_BUTTONS, as this is 
+//the max number of buttons on the SpaceOrb--not the spaceball
+//(4k has 12)
 #define	ORB_NUM_PHYS_BUTTONS	7
+#define ORB_MAX_PHYS_BUTTONS   12
 
 //indices into axis array
 #define AXIS_TX 0

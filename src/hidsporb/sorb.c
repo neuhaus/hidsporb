@@ -261,13 +261,14 @@ SOrbParseButtonData(IN PORB_DATA orbData)
 	DbgOut( ORB_DBG_SORB, ("Buttons: (0x%x, 0x%x, 0x%x, 0x%x, 0x%x, 0x%x)", buffer[ 0 ], buffer[ 1 ], buffer[ 2 ], buffer[ 3 ], buffer[ 4 ], buffer[ 5 ] ));
 	DbgOut(ORB_DBG_SORB, ("SOrbParseButtonData(): buttons %x", (ULONG) buttons));
 	// Update buttons
-	orbData->buttons[0] = buttons & 0x01;
-	orbData->buttons[1] = buttons & 0x02;
-	orbData->buttons[2] = buttons & 0x04;
-	orbData->buttons[3] = buttons & 0x08;
-	orbData->buttons[4] = buttons & 0x10;
-	orbData->buttons[5] = buttons & 0x20;
-	orbData->buttons[6] = buttons & 0x40;
+	OrbDataSetPhysicalButtons7( orbData,
+				    buttons & 0x01,
+				    buttons & 0x02,
+				    buttons & 0x04,
+				    buttons & 0x08,
+				    buttons & 0x10,
+				    buttons & 0x20,
+				    buttons & 0x40 );
 
 	DbgPrintButtons( ORB_DBG_SORB, orbData );
 	// Call callback function

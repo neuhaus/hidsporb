@@ -34,7 +34,7 @@ typedef struct _ORB_DATA {
 	PORB_PARSE_PACKET_FUNC	parsePacketFunc;
 	// ORB data
 	LONG		Axes[ORB_NUM_AXES];			// Physical axes
-	ULONG		buttons[ORB_NUM_PHYS_BUTTONS];		// Physical buttons
+	ULONG		buttons[ORB_MAX_PHYS_BUTTONS];		// Physical buttons
 	// logical mapping stuff
 	// Fields for physical-to-logical control bindings
 	// axis map--for each logical axis, an entry in this map contains the
