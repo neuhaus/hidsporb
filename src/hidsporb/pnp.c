@@ -106,6 +106,7 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PDEVICE_EXTENSION devExt;
 	NTSTATUS status;
 	PIO_STACK_LOCATION irpSp;
+	PDEVICE_OBJECT nextDevObj, ndo1;
 	CHAR func;
 
 	PAGED_CODE();
@@ -141,10 +142,18 @@ OrbPnp(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		// We simply send it to lower driver
 		// Set removed to TRUE until I know what causes PNP stuff to stop
 		devExt->Removed = TRUE;
+		// Flush queue twice
+		OrbFlushQueue(devExt, STATUS_DELETE_PENDING);
+		OrbFlushQueue(devExt, STATUS_DELETE_PENDING);
 		Irp->IoStatus.Status = STATUS_SUCCESS;
 		status = CallNextDriver(devExt->nextDevObj, Irp);
 		break;
 	default:
+		nextDevObj = GET_PDO_FROM_EXT(devObj);
+		ndo1 = devExt->nextDevObj;
+		if (nextDevObj == 1) {
+			status = CompleteIrp(Irp, STATUS_NOT_SUPPORTED, 0);
+		}
 		status = CallNextDriver(devExt->nextDevObj, Irp);
 	}
 	// Release remove lock
@@ -166,6 +175,8 @@ OrbStartDevice(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 
 	DbgOut(ORB_DBG_PNP, ("OrbStartDevice(): enter\n"));
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
+	// Get nextDevObj again
+	devExt->nextDevObj = GET_PDO_FROM_EXT(devObj);
 	// Set up stack for call
 	Irp->IoStatus.Status = STATUS_SUCCESS;
 	// Call lower driver

@@ -3,6 +3,8 @@
 //
 
 #define	_REPORT_
+// Define ORB_REPORT_HACKS to include keyboard and mouse reports in SpaceOrbReport
+//#define	ORB_REPORT_HACKS
 #include "hidsporb.h"
 
 // This is the heart of HID minidriver
@@ -12,12 +14,12 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PIO_STACK_LOCATION irpSp;
 	PDEVICE_EXTENSION devExt;
 	ULONG ioctl;
-	NTSTATUS status = STATUS_NOT_SUPPORTED;
+	NTSTATUS status;
 
 	devExt = (PDEVICE_EXTENSION) GET_DEV_EXT(devObj);
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
 	ioctl = irpSp->Parameters.DeviceIoControl.IoControlCode;
-	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): enter %d\n", ioctl));
+	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): enter %x\n", ioctl));
 	// Get remove lock
 	status = IoAcquireRemoveLock(&devExt->RemoveLock, Irp);
 	// Fail if unsuccessful
@@ -38,6 +40,7 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		status = CompleteIrp(Irp, STATUS_DELETE_PENDING, 0);
 		goto failed;
 	}
+	status = STATUS_NOT_SUPPORTED;
 
 	// Determine which function to call
 	switch (ioctl) {
@@ -54,7 +57,7 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 		status = OrbGetDeviceAttributes(devObj, Irp);
 		break;
 	case IOCTL_HID_GET_STRING:
-		status = OrbGetString(devObj, Irp);
+		status = OrbGetString(devObj, Irp, (ULONG) (((ULONG) irpSp->Parameters.DeviceIoControl.Type3InputBuffer) & 0xffff));
 		break;
 	case IOCTL_HID_GET_FEATURE:
 		status = OrbGetSetFeature(devObj, Irp, TRUE);
@@ -62,11 +65,16 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	case IOCTL_HID_SET_FEATURE:
 		status = OrbGetSetFeature(devObj, Irp, FALSE);
 		break;
-	case IOCTL_GET_PHYSICAL_DESCRIPTOR:
+	case IOCTL_HID_GET_MANUFACTURER_STRING:
+	case IOCTL_HID_GET_PRODUCT_STRING:
+	case IOCTL_HID_GET_SERIALNUMBER_STRING:
+		status = OrbGetString(devObj, Irp, ioctl);
+		break;		
+	//case IOCTL_GET_PHYSICAL_DESCRIPTOR:
 	case IOCTL_HID_ACTIVATE_DEVICE:
 	case IOCTL_HID_DEACTIVATE_DEVICE:
-	case IOCTL_HID_GET_INDEXED_STRING:
-	case IOCTL_HID_WRITE_REPORT:
+	//case IOCTL_HID_GET_INDEXED_STRING:
+	//case IOCTL_HID_WRITE_REPORT:
 		status = STATUS_SUCCESS;
 	default:
 		status = CompleteIrp(Irp, status, 0);
@@ -74,7 +82,7 @@ OrbInternalIoctl(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Release remove lock
 	IoReleaseRemoveLock(&devExt->RemoveLock, Irp);
 failed:
-	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): exit %d, status %x\n", ioctl, status));
+	DbgOut(ORB_DBG_IOCTL, ("OrbInternalIoctl(): exit %x, status %x\n", ioctl, status));
 
 	return status;
 }
@@ -86,6 +94,7 @@ OrbGetDeviceDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	PIO_STACK_LOCATION irpSp;
 	NTSTATUS status;
 	PHID_DESCRIPTOR hidDesc;
+	HID_DESCRIPTOR hidDesc1;
 	ULONG len;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
@@ -94,8 +103,9 @@ OrbGetDeviceDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	hidDesc = Irp->UserBuffer;
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
 	// Fail if the buffer is smaller than needed
+	//if (len < (sizeof(HID_DESCRIPTOR) + sizeof(hidDesc1.DescriptorList[0]))) {
 	if (len < sizeof(HID_DESCRIPTOR)) {
-		DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceDescriptor(): small buffer\n"));
+		DbgOut(ORB_DBG_IOCTL, ("OrbGetDeviceDescriptor(): small buffer %d\n", len));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -107,6 +117,7 @@ OrbGetDeviceDescriptor(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	// Note, we can make many descriptors
 	// to emulate mouse and other kinds of devices
 	// We'll hack with these later
+	// XXX hackery
 	hidDesc->bNumDescriptors	= 1;
 	hidDesc->DescriptorList[0].bReportType = HID_REPORT_DESCRIPTOR_TYPE;
 	hidDesc->DescriptorList[0].wReportLength = sizeof(SpaceOrbReport);
@@ -156,11 +167,11 @@ OrbReadReport(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
 	ULONG len;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
+	DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): enter, rep len %d\n", len));
 	// Fail if the buffer is smaller than needed
 	if (len < HIDSPORB_REPORT_SIZE) {
-		DbgOut(ORB_DBG_REPORT, ("OrbGetReportDescriptor(): %d, small buffer\n", len));
+		DbgOut(ORB_DBG_REPORT, ("OrbReadReport(): %d, small buffer\n", len));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, 0);
 		goto failed;
 	}
@@ -206,49 +217,80 @@ failed:
 	return status;
 }
 
-// This function is used to return string
-// descriptors
-// Note: This doesn't really work now
-// We must return USB_STRING_DESCRIPTOR stuff
+// Note: these are taken from DDK
+typedef struct _ORB_STRINGS {
+	// Manufacturer
+	UCHAR m_len;	// 9*2
+	UCHAR m_type;	// 3
+	UCHAR m_lang[2];// 9,0
+	WCHAR m_str[9]; // "SpaceTec"
+	// Product
+	UCHAR p_len;	// 13*2
+	UCHAR p_type;	// 3
+	WCHAR p_str[13];// "SpaceOrb 360"
+	// Serial #
+	UCHAR s_len;	// 2*2
+	UCHAR s_type;	// 3
+	WCHAR s_str[2];	// "0"
+	// Unsupported string
+	UCHAR u_len;	// 19*2
+	UCHAR u_type;	// 3
+	WCHAR u_str[19];// "UNSUPPORTED STRING"
+} ORB_STRINGS;
+
+static ORB_STRINGS orbStrings = {
+  18, 3, {9, 0}, { 'S', 'p', 'a', 'c', 'e', 'T', 'e', 'c' },
+  26, 3, { 'S', 'p', 'a', 'c', 'e', 'O', 'r', 'b', ' ', '3', '6', '0' },
+  4, 3,  { '0' },
+  38, 3, { 'U', 'N', 'S', 'U', 'P', 'P', 'O', 'R', 'T', 'E', 'D', ' ', 'S', 'T', 'R', 'I', 'N', 'G' }
+};
+
+// This function is used to return string descriptors
 NTSTATUS
-OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp)
+OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp, ULONG reqStr)
 {
 	PIO_STACK_LOCATION irpSp;
 	NTSTATUS status;
-	ULONG reqStr, len, len1;
+	ULONG len, len1;
 	PCHAR pStr, pStr1;
 
 	irpSp = IoGetCurrentIrpStackLocation(Irp);
-	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): enter\n"));
 	len = irpSp->Parameters.DeviceIoControl.OutputBufferLength;
-	reqStr = (ULONG) (irpSp->Parameters.DeviceIoControl.Type3InputBuffer) & 0xffff;
+	//reqStr = (ULONG) (irpSp->Parameters.DeviceIoControl.Type3InputBuffer) & 0xffff;
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): enter %x\n", reqStr));
 	// Set up device attributes
 	pStr = Irp->UserBuffer;
 	switch (reqStr) {
 	case HID_STRING_ID_IMANUFACTURER:
-		pStr1 = "Two Guys, Inc.";
+	case IOCTL_HID_GET_MANUFACTURER_STRING:
+		pStr1 = &orbStrings.m_str[0];
+		len1 = orbStrings.m_len;
 	break;
 	case HID_STRING_ID_IPRODUCT:
-		pStr1 = "SpaceOrb 360";
+	case IOCTL_HID_GET_PRODUCT_STRING:
+		pStr1 = &orbStrings.p_str[0];
+		len1 = orbStrings.p_len;
 	break;
 	case HID_STRING_ID_ISERIALNUMBER:
-		pStr1 = "42";
+	case IOCTL_HID_GET_SERIALNUMBER_STRING:
+		pStr1 = &orbStrings.s_str[0];
+		len1 = orbStrings.s_len;
 	break;
 	default:
-		pStr1 = "UNSUPPORTED STRING";
+		pStr1 = &orbStrings.u_str[0];
+		len1 = orbStrings.u_len;
 	}
-	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): string is %s\n", pStr1));
-	len1 = strlen(pStr1);
+	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): string is %ws\n", pStr1));
 	// Fail if the buffer is smaller than needed
-	if (len < (len1 + 1)) {
+	if (len < len1) {
 		DbgOut(ORB_DBG_IOCTL, ("OrbGetStringDescriptor(): small buffer\n"));
 		status = CompleteIrp(Irp, STATUS_BUFFER_TOO_SMALL, len + 1);
 		goto failed;
 	}
 	// Copy string
-	RtlCopyMemory(pStr, pStr1, len1 + 1);
+	RtlCopyMemory(pStr, pStr1, len1);
 	// Complete request
-	status = CompleteIrp(Irp, STATUS_SUCCESS, len + 1);
+	status = CompleteIrp(Irp, STATUS_SUCCESS, len1);
 failed:
 	DbgOut(ORB_DBG_IOCTL, ("OrbGetString(): exit, status %x\n"));
 

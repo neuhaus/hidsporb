@@ -18,7 +18,7 @@ NTSTATUS
 OrbGetDeviceAttributes(IN PDEVICE_OBJECT devObj, IN PIRP Irp);
 
 NTSTATUS
-OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp);
+OrbGetString(IN PDEVICE_OBJECT devObj, IN PIRP Irp, ULONG reqStr);
 
 NTSTATUS
 OrbGetSetFeature(IN PDEVICE_OBJECT devObj, IN PIRP Irp, IN BOOLEAN Get);

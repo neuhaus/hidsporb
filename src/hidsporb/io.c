@@ -2,6 +2,9 @@
 // io.c
 //
 
+// Define ORB_REAL_HARDWARE if you want real hardware I/O
+// I used it to debug common stuff without touching serial port
+#define	ORB_REAL_HARDWARE
 #ifndef HIDSPORB_H
 #include "hidsporb.h"
 #endif
@@ -28,6 +31,10 @@ OrbStartIo(IN PDEVICE_EXTENSION devExt)
 	ULONG i;
 
 	DbgOut(ORB_DBG_IO, ("OrbStartIo(): enter\n"));
+// Exit if no hardware
+#ifndef	ORB_REAL_HARDWARE
+	return STATUS_SUCCESS;
+#endif
 	serObj = devExt->nextDevObj;
 	// Try to open COM port
 	status = OrbSerOpenPort(serObj, devExt->readIrp);
@@ -100,6 +107,9 @@ OrbStopIo(IN PDEVICE_EXTENSION devExt)
 	DbgOut(ORB_DBG_IO, ("OrbStopIo(): enter\n"));
 	// Flush pending requests queue
 	OrbFlushQueue(devExt, STATUS_DELETE_PENDING);
+#ifndef	ORB_REAL_HARDWARE
+	return;
+#endif
 	// Don't bother if thread hasn't been started
 	if (devExt->threadStarted == FALSE) {
 		DbgOut(ORB_DBG_IO, ("OrbStopIo(): thread not started\n"));
@@ -163,5 +173,5 @@ OrbReadThread(IN PDEVICE_OBJECT devObj)
 	KeSetEvent(&devExt->threadTerminated, 0, FALSE);
 	devExt->threadStarted = FALSE;
 	// Terminate thread
-	PsTerminateSystemThread(0);	
+	PsTerminateSystemThread(0);
 }

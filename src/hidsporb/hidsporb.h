@@ -107,6 +107,9 @@ OrbRemoveDevice(IN PDEVICE_OBJECT fdo, IN PIRP Irp);
 //#define	GET_DEV_EXT(fdo)	(((PHID_DEVICE_EXTENSION) (fdo)->DeviceExtension)->MiniDeviceExtension)
 #define GET_DEV_EXT(DO) ((PDEVICE_EXTENSION) (((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->MiniDeviceExtension))
 #define GET_PDO_FROM_EXT(DO) \
-(((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->PhysicalDeviceObject)
+(((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->NextDeviceObject)
+// Changed to ->NextDeviceObject... While PhysicalDeviceObject seems to work,
+// it bug checks system with driver verifier enabled
+//(((PHID_DEVICE_EXTENSION)(DO)->DeviceExtension)->PhysicalDeviceObject)
 
 #endif
