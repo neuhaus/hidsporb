@@ -1,0 +1,31 @@
+TARGETNAME=hidsporb
+TARGETTYPE=DRIVER
+DRIVERTYPE=WDM
+TARGETPATH=obj
+
+TARGETLIBS=$(DDK_LIB_PATH)\hidclass.lib \
+           $(DDK_LIB_PATH)\ntoskrnl.lib
+
+INCLUDES=..\inc;..\..\inc;\ntddk\src\wdm\hid\inc;\ntddk\inc\ddk
+
+MSC_WARNING_LEVEL=-W3 -WX
+
+#NTDEBUG=ntsd
+#NTDEBUGTYPE=windbg
+#MSC_OPTIMIZATION=/Od
+        
+SOURCES=hidsporb.c       \
+        pnp.c           \
+        ioctl.c         \
+        hid_reports.c        \
+	serial_routines.c \
+	iosync.c \
+	orb_comm.c \
+	settings.c \
+	irp_queue.c \
+	charts.c \
+	validity.c \
+        hidsporb.rc
+
+i386_SOURCES=
+

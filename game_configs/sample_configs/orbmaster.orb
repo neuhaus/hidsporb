@@ -1,0 +1,7 @@
+--set-defaults 
+--reset-sensitivity-curve 0 
+--set-facing horizontal 
+--set-master-sensitivity 0 
+--set-master-gain 50 
+--set-chording off 
+--set-null-region 0 

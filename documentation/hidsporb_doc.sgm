@@ -1,0 +1,906 @@
+<!DOCTYPE article PUBLIC "-//OASIS//DTD DocBook V3.1//EN" [
+]>
+
+<article>
+  <artheader>
+    <title>The Hidsporb driver</title>
+    <subtitle>A third-party unsupported SpaceOrb 360 driver for Windows 2000 and Windows XP</subtitle>
+    <author>
+      <firstname>Victor</firstname>
+      <surname>Putz</surname>
+    </author>
+    <address><email>vputz@nyx.net</email></address>
+  </artheader>
+  <section>
+    <title>Introduction</title>
+    <para>Some time ago, SpaceTec IMC created a unique and powerful input device named the Spaceball Avenger, descended from a series of high-end CAD controllers and eventually giving rise to the SpaceOrb 360.  Looking something like a squat boomerang with six buttons clustering the right side and a rubber-coated ball jutting presumptuously from the left, the SpaceOrb allowed true six-degrees-of-freedom control to any supporting games with a precise range of motion.  Nothing quite like it had ever been seen in the computer games arena.</para>
+    <para>I was fortunate enough to see the SpaceOrb at the 1996 Computer Games Developers' Conference, where they had erected a tiny booth showing the orb off; it was running one of the Descent games, and I was captivated.  While my sense of control was completely shot, the possibilities seemed immense; with a quick twist of the wrist and slight application of pressure, I was able to perform maneuvers which normally required coordinated motion of multiple fingers, several buttons, and more manual dexterity than I had.</para>
+    <para>Without question, I was interested, and signed up for their developers' program, intending to use the orb in a game I was loosely designing, tentatively named "Halberd".</para>
+    <para>Halberd never saw the light of day, unfortunately, and it wasn't until several years later that I went ahead and purchased an orb for my own use.  In the years to follow, the orb would be seen, largely, as a commercial failure.  Spacetec IMC was absorbed by Labtec, who was then acquired by Logitech and spun back off as 3dConnexion.  With orb advocates growing fewer, and the orb languishing in the marketplace, WDM-compliant drivers never materialized for Windows 2000.  When Windows XP arrived as the next de facto home operating system, the future of the orb seemed doomed.</para>
+    <para>More to the point, it meant that I couldn't use my favorite controller any more.  And I hate to see good technology abandoned.</para>
+    <para>On a lark, I began poking around the Microsoft Windows Device Development kit, and discovered that they included source code for several drivers--such as <filename>hidgame.sys</filename>, a driver for enumerating standard gameport devices and making them look like HID (human input device) drivers, or <filename>mouser.sys</filename>, a driver for enumerating serial mice and setting them up as normal mouse devices.  With luck and a bit of duct tape, I figured that I might, just maybe, be able to get a driver working, and posted a querulous message on a SpaceOrb user community bulletin board to that effect.  Never mind that I hadn't touched C/C++ in over a year or so, had been working with Linux almost exclusively for the past two years, and had never once written anything resembling a device driver.</para>
+    <para>What followed was about four weeks of frenetic development, explosive feature sets, and the most active user community I've seen, and what it resulted in is <filename>hidsporb.sys</filename>, a kernel-mode device driver which treats the SpaceOrb as a standard HID device and, if anything, offers more configurability than ever, with such advanced features as chording to provide a virtual 16 buttons, user-configurable axis mapping, sensitivity curves, gain, a "press-for-precision-mode" feature, and the ability for zealous users to create and upload their own axis response curves.  With mouse and keyboard emulation slated for upcoming versions, I believe this to be one of the more advanced user interface devices out there--minus, unfortunately, a glossy user interface.  We must take these things one part at a time.</para>
+    <para>The SpaceOrb community has been an immense source of support and encouragement throughout all this.  I have invested a fair amount of my time in this driver, and I personally believe that this, the first release version, is the finest driver I am able to create at this time.  It is probably not without faults; time will tell.  But now I give it to you.</para>
+    <para>What you do with it is of interest to us all.</para>
+  </section>
+  <section>
+    <title>Requirements</title>
+    <para>To use the <filename>hidsporb.sys</filename> driver and accompanying <filename>orbcontrol.exe</filename> program, you will need the following:</para>
+    <orderedlist>
+      <listitem>
+	<para>One SpaceTec SpaceOrb 360.  Currently the driver does not handle multiple orbs, although we hope to add this in the future.</para>
+      </listitem>
+      <listitem>
+	<para>One free serial port.  You will probably have best success if you use one of the first few (standard) ports, such as COM1-COM4</para>
+      </listitem>
+      <listitem>
+	<para>A machine running Windows 2000 or Windows XP</para>
+      </listitem>
+    </orderedlist>
+  </section>
+  <section>
+    <title>Installation</title>
+    <note>
+      <para>Once you install hardware to a Windows XP or 2000 system,
+it's incredibly difficult to remember what the process was like, because
+the operating system never acts the same way again.  I'm quite indebted to
+John Grantham for doing a last-minute installation guide!</para>
+    </note>
+    <section>
+      <title>Finding and enumerating the orb</title>
+      <para>If you used the official SpaceWare software, you probably are aware of the paradigm it used: the software was installed, and then you pointed it at a particular COM port in order to use the orb detected there.</para>
+      <para>Windows XP and 2000 rely on a fundamentally different driver model: ever device is essentially treated as a plug-and-play device and allocated resources; the resources are then given over to the driver, as if the operating system were saying "say, this looks like it ought to belong to you... do something with it!"</para>
+      <para>The trick, then, is getting Windows to see the orb.  What happens is that on boot-up the serial driver loads up and discovers a lot of serial ports attached to the machine, which is well and good.  Next the serial enumeration driver, or "serenum", scans the ports provided by the serial driver and does some magical chicanery to figure out what's attached to them, eventually getting some sort of ID that it can use to identify the device.  Once it has that Id, it looks in an internal table to see what that could possibly be and what driver it should give it to.</para>
+      <para>So the first part of installing the <filename>hidsporb</filename> driver is simply detecting the orb.</para>
+      <para>Under both Windows XP and Windows 2000, the simplest way to accomplish this is:</para>
+      <orderedlist>
+	<listitem>
+	  <para>Unzip the drivers to a subdirectory on your system.  In this example, the subdirectory has been named <filename>g:\hidsporb</filename>.  The subdirectory should include the two files <filename>hidsporb.sys</filename> and <filename>hidsporb.inf</filename>.</para>
+	</listitem>
+	<listitem>
+	  <para>Power down your system completely.</para>
+	</listitem>
+	<listitem>
+	  <para>Connect the SpaceOrb to a COM port that is not being used by another hardware device, such as a modem or mouse; since the Orb will be sending data at fairly constant rates, it should preferably have its own IRQ.  Communications port one is usually best.</para>
+	</listitem>
+	<listitem>
+	  <para>Once the SpaceOrb is securelly connected to your Com port, power up your system and log in</para>
+	</listitem>
+	<listitem>
+	  <para>The plug-and-play subsystem should then detect and enumerate the orb, and you should be greeted with the "new hardware found" wizard:</para>
+	  <figure>
+	    <title>The "Found New Hardware!" wizard</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image002.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+      </orderedlist>
+      <para>If the boot-up option did not work and you are not greeted with the "Found New Hardware!" wizard, one of two things has probably happened: either the orb is already detected and the system is confused, or something in the plug-and-play part of your machine is baffled.</para>
+      <para>The first thing to do is to check out your device manager.  In Windows 2000, you can do this by choosing <userinput>start-&gt;settings-&gt;control panel</userinput> from the Windows 2000 main menu and then choosing "system" from the resulting window to bring up the system properties dialog.  Under the "hardware" tab, choose the "device manager" button.  This should bring up a delightful tree showing your devices.</para>
+      <para>Scan the list of devices.  The SpaceOrb may show up as "Spaceball" with an exclamation point next to it.  If it does, then it is detected but not operating with current drivers, and we should be able to fix that.  Right-click on the "Spaceball" entry, choose "properties", and from the resulting properties page click on the "driver" tab and then the "Update driver" button; proceed to "Installing the driver", below.</para>
+      <para>If the orb does <emphasis>not</emphasis> show up, try choosing <userinput>action-&gt;scan for hardware changes</userinput> from the Device Manager menu.  This will result in another PNP scan of your system to find the attached orb.</para>
+      <para>If this fails, something deeper is probably wrong.  Check your BIOS settings for PNP options, which has been reported to help in at least one case.</para>
+    </section>
+    <section>
+      <title>Installing the <filename>hidsporb.sys</filename> driver</title>
+      <para>Once the orb is detected or you have asked for the driver to be updated, Windows will railroad you down a series of dialogs in order to get the driver installed.  It will first offer a chance to search for a driver, which they recommend.  However, the search will be fruitless, because they do not have a driver; choose the "Choose a specific directory" option.</para>
+      <orderedlist>
+	<listitem>
+	  <para>From the "Found New Hardware!" wizard, select the option that says "Install from a list or specific location (Advanced)", and click the "Next" button.  You should be greeted with a dialog listing search and installation options.</para>
+	  <figure>
+	    <title>The "Search and Installation Options" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image004.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>From here, choose the option "Don't search.  I will choose the driver to install", and click on the "Next" button.  You should be greeted with a list of types of devices:</para>
+	  <figure>
+	    <title>The "device driver you want to install" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image006.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Select "Hid-compliant devices" from the list of devices, and then click the "Have Disk" button, bringing up the "install from disk" dialog</para>
+	  <figure>
+	    <title>The "Install From Disk" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image008.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>You'll need to find the subdirectory that you unzipped to, so click the "browse" button to bring up the "Locate File" dialog:</para>
+	  <figure>
+	    <title>The "Locate File" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image010.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Navigate to the folder you unzipped the driver to and open it by double-clicking on the folder name, bringing up a list of the folder contents</para>
+	  <figure>
+	    <title>Navigating through the system tree</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image012.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	  <figure>
+	    <title>Navigating through the system tree</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image014.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	  <figure>
+	    <title>The folder contents, showing hidsporb.inf</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image016.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Now click on the <filename>hidsporb.inf</filename> file, and click the "Open" button to select it.  This should bring you back to the "Install From Disk" dialog, with your subdirectory selected:</para>
+	  <figure>
+	    <title>The "Install From Disk" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image020.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Click the OK button to continue.  Finally, the "Found New Hardware!" wizard will pop up again, only this time with the SpaceOrb displayed:</para>
+	  <figure>
+	    <title>The "Found New Hardware" wizard, with the SpaceOrb available</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image024.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Select the SpaceOrb and click on "Next" to continue.</para>
+	  <para>At this point, Windows will complain that the driver you are about to install is not "digitally signed" by Microsoft, and that drivers which are not signed are doubtless unsafe and heinous.  This is a good time for me to remind you that the <filename>hidsporb</filename> driver is <emphasis>NOT</emphasis> endorsed by Microsoft, Logitech, Labtec, or Spacetec, and comes with <emphasis>ABSOLUTELY NO WARRANTY</emphasis> of any sort.  If you install this driver and it turns your hard drive into a fruitcake, no one is accountable.  Having said that, neither I nor my small team of beta testers has encountered any catastrophic failure or loss of data, but it is still <emphasis>your</emphasis> choice to install an unsupported driver.  If you agree, simply click through the dialog boxes.</para>
+	  <figure>
+	    <title>The "This Driver May Be Evil" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image026.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Click on the "Continue Anyway" button to close this dialog.  After a bit of churning, you should be greeted by this happy sight:</para>
+	  <figure>
+	    <title>The "Found New Hardware" wizard, almost completed</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image028.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Click on "Finish" to finish installing the <filename>hidsporb.sys</filename> driver, and continue to the next portion of installation, "Installing the HID-compliant game controller driver".</para>
+	</listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>Installing the HID-compliant game controller driver</title>
+      <para>The <filename>hidsporb.sys</filename> driver, as important as it is, is only part of the picture.  The other half is a "virtual device" which represents the game controller as it's seen by windows.  By this time, the "Found New Hardware" wizard has reappeared, with a somewhat mysterious message:</para>
+      <figure>
+	<title>The "Found New Hardware!" wizard, again...</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="images/image030.jpg" format="jpg">
+	  </imageobject>
+	</mediaobject>
+      </figure>
+      <para>Luckily, this is an even simpler portion of the procedure than the first bit:</para>
+      <orderedlist>
+	<listitem>
+	  <para>From the "Found New Hardware" box, you are offered a couple of choices.  Since the "HID-compliant game controller" driver is a standard part of Windows XP, you can probably select the "Install the Software Automatically" option.  Here, though, we elect to choose the "Install from a list or specific location" option, and click "Next" to get to the "search and installation options" dialog, which should already include the <filename>hidsporb</filename> directory.</para>
+	  <figure>
+	    <title>The "Search and installation options dialog", again</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image034.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Ensure the "Search for the best driver in these locations" box is marked and simply click on the "next" button, bringing up the search dialog and eventually the completion dialog:</para>
+	  <figure>
+	    <title>The "Found New Hardware" wizard, searching bravely for the HID-compliant game controller driver</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image036.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	  <figure>
+	    <title>Success!</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image038.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>At this point, everything for the driver should be installed correctly.  Click on "Finish" to close the dialog, and proceed on with "Verifying the installation"</para>
+	</listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>Verifying the Installation</title>
+      <para>At this point, both the <filename>hidsporb.sys</filename> driver and the "HID-compliant game controller" driver should be installed.  Just to be sure, it's a good idea to bring up the system device manager and make sure everything looks right.</para>
+      <orderedlist>
+	<listitem>
+	  <para>First, right-click on "My Computer" and select "Properties" to bring up the system properties page:</para>
+	  <figure>
+	    <title>The "System Properties" dialog</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image040.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Select the "Hardware" tab...</para>
+	  <figure>
+	    <title>The "Hardware" tab</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image042.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>...and then the "device manager" button...</para>
+	  <figure>
+	    <title>The Device Manager</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image044.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>Navigate to the "Human Interface Devices" subtree and open it:</para>
+	  <figure>
+	    <title>The "Human Interface Devices" subtree</title>
+	    <mediaobject>
+	      <imageobject>
+		<imagedata fileref="images/image046.jpg" format="jpg">
+	      </imageobject>
+	    </mediaobject>
+	  </figure>
+	</listitem>
+	<listitem>
+	  <para>You should see at least two devices here: the "Spacetec Spaceorb 360" and the "HID-compliant game controller"; if you have other HID devices connected to your system, such as mice or gamepads, you may see multiple entries here.  If the two devices do not appear, something has gone wrong with the installation; you may want to try the installation again, or do further diagnostics, if this occurs.</para>
+	</listitem>
+      </orderedlist>
+    </section>
+    <section>
+      <title>Testing the Driver</title>
+      <para>After installation, the orb will show up as a simple HID device as far as windows is concerned.  Open up the game controller control panel (under Windows 2000, this is done via <userinput>start-&gt;settings-&gt;control panel-&gt;game controllers</userinput>; under Windows XP it is somewhat different (<userinput>start-&gt;control panel-&gt;game controllers icon</userinput>)  You should see a list of game controllers, with the SpaceOrb listed:</para>
+      <figure>
+	<title>A sight for sore eyes--the SpaceOrb is OK!</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="images/image050.jpg" format="jpg">
+	  </imageobject>
+	</mediaobject>
+      </figure>
+      <para>Your SpaceOrb <emphasis>should</emphasis> show up as a "Spacetec SpaceOrb 360" under your control panel.  It <emphasis>may</emphasis> show up simply as "6-axis 16-button device", which has occurred rarely.  It should also say "OK" for its status.  Click the page's "properties" button and verify that your orb is represented as a six-axis sixteen-button device:</para>
+      <figure>
+	<title>The mighty orb, working at last</title>
+	<mediaobject>
+	  <imageobject>
+	    <imagedata fileref="images/image052.jpg" format="jpg">
+	  </imageobject>
+	</mediaobject>
+      </figure>
+      <para>Wiggle the orb to get an idea of how it will respond.  Play with the buttons; the orb by default will start with chording turned on; see the section marked "Controlling the Hidsporb Driver" to learn how to change options on your orb.</para>
+      <para>Congratulations! Your orb is now in working order.  If you had any trouble with these instructions, seek assistance first from the SpaceOrb community at http://www.planethardware.com/spaceorb.  If you absolutely cannot get anything working, let me know and I will do my best to assist you.</para>
+    </section>
+  </section>
+  <section>
+    <title>Controlling the Hidsporb Driver</title>
+    <para>To keep the core of the hidsporb driver support as simple as possible, all control to the orb is done via a command-line interface, <filename>orbcontrol.exe</filename>.  I chose a command-line interface for many reasons, chief among them being simplicity of the underlying code as well as a stark loyalty to command-line interfaces; it is a philosophical choice as much as anything (for an amusing read on the subject, see Neal Stephenson's essay "In the Beginning, there was the Command Line", freely available at http://www.cryptonomicon.com/beginning.html)  While third-party utilities promise to make this process much more user-friendly and elegant, it still behooves the <filename>hidsporb</filename> user to understand the concepts involved in basic orb control.</para>
+    <para>To use <command>orbcontrol</command>, the <filename>orbcontrol.exe</filename> must be in your path or current directory.</para>
+    <para>Executing the <command>orbcontrol</command> command without any arguments will show the current status of the orb.</para>
+    <section>
+      <title>Basic control</title>
+      <section>
+	<title>Setting the orb facing</title>
+	<para>With so many users of the SpaceOrb, the question of "how to hold the orb" has coalesced into two camps: the vertical mode and the horizontal mode.  In the vertical mode, picture the device held with the ball "pointed at the ceiling"; pressing the ball away from you (perpendicular to the plane of the controller) will result in forward motion.  By contrast, the "horizontal" mode pictures the device held with the ball pointing horizontally; squeezing the ball away from the user results in forward motion.</para>
+	<figure>
+	  <title>Vertical facing for the SpaceOrb</title>
+	  <mediaobject>
+	    <imageobject>
+	      <imagedata fileref="images/orb_vertical.gif" format="gif">
+	    </imageobject>
+	    <caption>
+	      <para>The vertical (default) orb facing</para>
+	    </caption>
+	  </mediaobject>
+	</figure>
+	<figure>
+	  <title>Horizontal facing for the SpaceOrb</title>
+	  <mediaobject>
+	    <imageobject>
+	      <imagedata fileref="images/orb_horizontal.gif" format="gif">
+	    </imageobject>
+	    <caption>
+	      <para>The horizontal orb facing</para>
+	    </caption>
+	  </mediaobject>
+	</figure>
+	<para>To set the facing of the orb using <filename>orbcontrol.exe</filename>, use the <command>--set-facing (vertical | horizontal)</command> command:</para>
+	<example>
+	  <title>Setting the orb facing to vertical using <command>orbcontrol</command></title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-facing vertical</userinput></screen>
+	</example>
+	<para>The <command>--set-facing</command> command accepts either "horizontal" or "vertical" as its argument, and sets the facing appropriately.</para>
+      </section>
+
+      <section>
+	<title>Chording</title>
+	<para>One of the largest drawbacks of the original SpaceOrb was that the device only had six buttons.  While this was enough for very basic functionality in many games, users invariably had to use the keyboard quite frequently (usually frustrating, but not always terrible; my wife and I have very fond memories of playing half-life with myself on the orb and her on the keyboard as weapons control; it provided unending hours of amusement as I would round a corner and begin shouting in a panicked voice "AAAH! SHOTGUN! SHOTGUN!"  Needless to say, she laughed at me a great deal.)</para>
+	<para>While the device has only six physical buttons, it is possible to simulate more logical buttons by using <emphasis>chording</emphasis>--pressing keys in combination.  While this could be extremely confusing, the <filename>hidsporb</filename> driver uses the physical layout of the orb to divide its buttons into <emphasis>page selectors</emphasis> (buttons A and B, on the "edge" of the orb) and <emphasis>button selectors</emphasis> (buttons C, D, E, and F, on the "face" of the orb).  The following table summarizes button usages when chording is on (note: Internally, and as far as DirectInput goes, buttons begin numbering from 0; in the game controller control panel, they are numbered starting from 1.  I refer to the buttons as 0-15 in this table):</para>
+	<table>
+	  <title>Button assignment with chording on</title>
+	  <tgroup cols="4">
+	    <tbody>
+	      <row>
+		<entry>If page selector "A" is...</entry>
+		<entry>...and page selector "B" is...</entry>
+		<entry>...and this physical button is pressed...</entry>
+		<entry>The computer will see this logical button as pressed.</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>off</entry>
+		<entry>C</entry>
+		<entry>0</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>off</entry>
+		<entry>D</entry>
+		<entry>1</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>off</entry>
+		<entry>E</entry>
+		<entry>2</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>off</entry>
+		<entry>F</entry>
+		<entry>3</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>off</entry>
+		<entry>C</entry>
+		<entry>4</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>off</entry>
+		<entry>D</entry>
+		<entry>5</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>off</entry>
+		<entry>E</entry>
+		<entry>6</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>off</entry>
+		<entry>F</entry>
+		<entry>7</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>on</entry>
+		<entry>C</entry>
+		<entry>8</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>on</entry>
+		<entry>D</entry>
+		<entry>9</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>on</entry>
+		<entry>E</entry>
+		<entry>10</entry>
+	      </row>
+	      <row>
+		<entry>off</entry>
+		<entry>on</entry>
+		<entry>F</entry>
+		<entry>11</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>on</entry>
+		<entry>C</entry>
+		<entry>12</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>on</entry>
+		<entry>D</entry>
+		<entry>13</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>on</entry>
+		<entry>E</entry>
+		<entry>14</entry>
+	      </row>
+	      <row>
+		<entry>on</entry>
+		<entry>on</entry>
+		<entry>F</entry>
+		<entry>15</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+	<para>With chording off, the physical buttons A-F match directly to the logical buttons 0-5.  The "reset" button (button 6) on the bottom of the orb is actually reported as a DirectInput button, but since pressing it will re-zero the axis control, I cannot recommend this for in-game use.</para>
+	<para>To control chording with <command>orbcontrol</command>, use the command <command>--set-chording (on|off)</command>; for example:</para>
+	<example>
+	  <title>Turning chording on with <command>orbcontrol</command></title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-chording on</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>Restoring default settings</title>
+	<para>It could be that during the course of changing your orb's behaviour that you put the orb in a bad state.  To recover, and set the orb to default settings, use the <command>--set-defaults</command> command:</para>
+	<example>
+	  <title>Restarting the orb to default settings</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-defaults</userinput></screen>
+	</example>
+	<para>The default orb settings are:</para>
+	<table>
+	  <title>Default hidsporb settings</title>
+	  <tgroup cols="2">
+	    <tbody>
+	      <row>
+		<entry>Facing</entry>
+		<entry>Vertical</entry>
+	      </row>
+	      <row>
+		<entry>Chording</entry>
+		<entry>on</entry>
+	      </row>
+	      <row>
+		<entry>Sensitivity</entry>
+		<entry>4 on all axes (this closely resembles the classic SpaceOrb response curve)</entry>
+	      </row>
+	      <row>
+		<entry>Gain</entry>
+		<entry>50 on all axes</entry>
+	      </row>
+	      <row>
+		<entry>Polarity</entry>
+		<entry>+ on all axes</entry>
+	      </row>
+	      <row>
+		<entry>Null region</entry>
+		<entry>65</entry>
+	      </row>
+	      <row>
+		<entry>Precision sensitivity</entry>
+		<entry>0</entry>
+	      </row>
+	      <row>
+		<entry>Precision gain</entry>
+		<entry>50</entry>
+	      </row>
+	      <row>
+		<entry>Precision button</entry>
+		<entry>none</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+      </section>
+    </section>
+    <section>
+      <title>Intermediate control</title>
+      <section>
+	<title>Setting the axis map</title>
+	<para>The <command>--set-facing</command> command is really just shorthand for redefining the axis map to a preset.  For more fine-grained control, any logical axis can be mapped to any physical axis.</para>
+	<para>A logical axis represents what the computer sees; the <filename>hidsporb.sys</filename> driver supports the following six axes:</para>
+	<table>
+	  <title>Logical axes supported by <filename>hidsporb.sys</filename></title>
+	  <tgroup cols="3">
+	    <tbody>
+	      <row>
+		<entry>0</entry>
+		<entry>X</entry>
+		<entry>Movement in the X axis (left/right)</entry>
+	      </row>
+	      <row>
+		<entry>1</entry>
+		<entry>Y</entry>
+		<entry>Movement in the Y axis (forward/backward)</entry>
+	      </row>
+	      <row>
+		<entry>2</entry>
+		<entry>Z</entry>
+		<entry>Movement in the Z axis (up/down)</entry>
+	      </row>
+	      <row>
+		<entry>3</entry>
+		<entry>Rx</entry>
+		<entry>Rotation about the X axis (pitch up/down)</entry>
+	      </row>
+	      <row>
+		<entry>4</entry>
+		<entry>Ry</entry>
+		<entry>Rotation about the Y axis (roll left/right)</entry>
+	      </row>
+	      <row>
+		<entry>5</entry>
+		<entry>Rz</entry>
+		<entry>Rotation about the Z axis (yaw left/right)</entry>
+	      </row>
+	    </tbody>
+	  </tgroup>
+	</table>
+	<para>In the standard vertical mode, each physical axis maps to the appropriate logical axis (in other words, moving the orb left-to-right (physical axis 0) modifies logical axis 0 (your on-screen character moves left-to-right)).  When thinking about physical axes, always view the orb from the "vertical" position.</para>
+	<para>To change the axis map on the orb, use the <command>orbcontrol</command> command <command>--set-axis (logical-axis) (physical-axis)</command>; this maps the logical axis named in the first argument to the physical (orb) axis named in the second argument.  For example:</para>
+	<example>
+	  <title>Setting logical axis 1 to physical axis 0</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-axis 1 0</userinput></screen>
+	</example>
+	<para>After issuing this command, if the user held the orb in the vertical position and moved the orb left/right (physical axis zero), the on-screen character would move forward/backward (logical axis 1).</para>
+	<para>In general, most users will stick with either vertical or horizontal facing.</para>
+      </section>
+      <section>
+	<title>Axis polarity</title>
+	<para>While the hidsporb driver complies with the standard HID guidelines regarding which physical motion maps to which logical motion, users may find that they need to "invert" axes.  To invert a given logical axis, use the <command>--set-polarity (axis) (- | 0 | +)</command>.  Positive polarity is the default; negative polarity reverses an axis.  The '0' polarity setting causes that axis to always send a "midpoint" value--effectively making that axis unresponsive.</para>
+	<example>
+	  <title>Setting the polarity of axis 0 to negative</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-polarity 0 -</userinput></screen>
+	</example>
+	<para>Now, if the user moves the orb to the right, his on-screen character will move left.  You may have to change polarity if a given game reacts strangely and does not provide in-game configurability.</para>
+      </section>
+      <section>
+	<title>Axis gain</title>
+	<para>Beginning users of the orb will probably find, as the get used to the orb's motion, that they no longer want to move the orb to its maximum travel--in other words, they would like the orb to be more responsive to their touch.  There are two aspects to this: gain and sensitivity.  Gain represents how much the orb "amplifies" your motion, and is designated by a number between 0 and 100.  At the default value of 50, the orb has a one-to-one relationship between physical motion and logical motion.  At higher values of gain, the orb will be more responsive, reaching maximum values earlier; at lower values of gain, the orb will feel more "mushy" and will not reach maximum values (to see why this is useful, see the "precision" features, later).  The scale is such that at a gain value of 0, the orb will be one-fifth as responsive as usual, and at a gain value of 100, the orb will be five times as responsive.  Many users find that a value of 75 (three times as responsive) feels quite comfortable.</para>
+	<para>To set the gain of an axis, use the <command>--set-gain (axis) (gain)</command> command; to set the gain of all axes, use the <command>--set-master-gain (gain)</command> command:</para>
+	<example>
+	  <title>Setting the gain of axis 0 to 25 (one-third as responsive)</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-gain 0 25</userinput></screen>
+
+	</example>
+	<example>
+	  <title>Setting the gain of all axes to 75 (three times as responsive)</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-master-gain 75</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>Axis sensitivity</title>
+	<para>Gain represents one part of the orb's "feel"; sensitivity is another.  The <filename>hidsporb</filename> driver supports up to six "sensitivity curves" that represent different ways the orb can respond to physical motion.</para>
+	<para>The default sensitivity curve (curve zero) is a linear curve; in other words, users get the same response all across the orb's range of motion.  The other default curves (1-5) are curves which get progressively steeper near the edges and flatter near the center.  What this means is that, for example, using default sensitivity curve 5, the orb will be much more unresponsive near the center and much more responsive near the edges.  This can be used to provide precise aiming with small motions and rapid turns with large motions, roughly comparable to the "acceleration" setting in many mouse drivers.  For much more advanced control of sensitivity curves, see the section on uploading and downloading sensitivity curves later in the documentation.</para>
+	<figure>
+	  <title>The default sensitivity curves of the orb</title>
+	  <mediaobject>
+	    <imageobject>
+	      <imagedata fileref="images/orb_sensitivities.jpg" format="jpg">
+	    </imageobject>
+	    <caption>
+	      <para>The six default sensitivity curves of the orb.  Curve 0 represents a very linear motion; curve 5 represents very accelerated motion.  The curve which matches the old vendor SpaceOrb drivers is curve 4</para>
+	    </caption>
+	  </mediaobject>
+	</figure>
+	<para>To set the sensitivity curve on a given axis, use the <command>--set-sensitivity (axis) (curve number)</command> command; to set it on all axes, use the <command>--set-master-sensitivity</command> command:</para>
+	<example>
+	  <title>Setting the sensitivity of axis 0 to curve 5</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-sensitivity 0 5</userinput></screen>
+	</example>
+	<example>
+	  <title>Setting the sensitivity of all axes to curve 3</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-master-sensitivity 3</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>The null region</title>
+	<para>The sensor used by the orb is remarkably sensitive; even the weight of the orb pressing on the sensor results in some motion signals.  To prevent this from becoming too irritating, the orb itself implements a "null region" near the center of motion.  This represents a number below which no messages will be sent to the computer, and can be set to any value in the range [0..127], with 0 representing no null region and 127 representing a fairly large null region.</para>
+	<para>To set the null region, use the command <command>--set-null-region (new region)</command></para>
+	<example>
+	  <title>Setting the null region to zero</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-null-region 0</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>Precision</title>
+	<section>
+	  <title>What is 'precision'?</title>
+	  <para>The gain and sensitivity commands allow the user to control the orb's motion to a great degree.  However, there are some situations in certain games where it might be advantageous to temporarily change the orb's gain and sensitivity in order to move more precisely.  For example, in Half-Life Team Fortress Classic, the "sniper" character can zoom in to a great degree, but control is far too jumpy using the regular orb settings to be controllable.</para>
+	  <para>In recent months, joystick manufacturers  have begun producing game devices which have a "precision" button which temporarily "dampens" the joystick's motion (Gravis's "Precision Pro" line of controllers is the most widely-known example).  The <filename>hidsporb</filename> driver provides this functionality through the "precision" commands, which allow the user to select the gain and sensitivity of the orb when the precision button is pressed, and to select which button will be used as the "precision" button.</para>
+	</section>
+	<section>
+	  <title>Setting precision gain</title>
+	  <para>To set the gain of all orb axes when the precision button is being pressed, use the <command>--set-precision-gain (gain)</command> command:</para>
+	  <example>
+	    <title>Setting the precision-mode gain to 20</title>
+	    <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-precision-gain 20</userinput></screen>
+	  </example>
+	</section>
+	<section>
+	  <title>Setting precision sensitivity</title>
+	  <para>To set the sensitivity of all axes when the precision button is being pressed, use the <command>--set-precision-sensitivity (sensitivity)</command> command:</para>
+	  <example>
+	    <title>Setting the precision-mode sensitivity to curve 0</title>
+	    <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-precision-sensitivity 0</userinput></screen>
+	  </example>
+	</section>
+	<section>
+	  <title>Setting the precision button</title>
+	  <para>In order for the precision function to work at all, some button must be selected as the "precision button"; when this button is pressed, the orb will immediately go into precision mode, where the precision gain and sensitivity is applied to all axes.  The button you choose can either be a physical button or a logical button, and you should think carefully about how this will work (for example, if you choose physical button 0 with chording on, you will be putting the orb into precision mode every time you choose logical button page 1 or 3).  Even so, I have found that using physical button 0 works quite smoothly (in Half-Life TFC, I have chosen physical button 0 as precision-mode and set physical button D to "+attack" on pages 0 and 1, and the combination is quite satisfactory).</para>
+	  <para>To choose a precision button, use the command <command>--set-precision-button (logical | physical | none) (button index)</command>.  The second argument (button index) deserves some explanation; if you choose "logical" for the first argument, you may choose any button in the range [0..15]; if you choose "physical", this must be in the range [0..6].  Finally, if you choose "none" (disabling precision mode), you should omit the second argument entirely.</para>
+	  <example>
+	    <title>Setting the precision-mode button to physical button 0</title>
+	    <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-precision-button physical 0</userinput></screen>
+	  </example>
+	  <example>
+	    <title>Disabling precision mode</title>
+	    <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-precision-button none</userinput></screen>
+	  </example>
+	</section>
+	<section>
+	  <title>"Batch Files" for <command>orbcontrol</command></title>
+	  <para>It would certainly get tiresome having to type in lists of orbcontrol commands every time you start a game.  To simplify things somewhat, <command>orbcontrol</command> supports "batch files" of commands.  Simply create a file containing the orbcontrol commands you would ordinarily type in at the command line and use the <command>-f</command> or <command>--from-file</command> commands to load that into <command>orbcontrol</command></para>
+	  <example>
+	    <title>Creating and running a batch file</title>
+	    <para>Suppose I had a standard orb configuration for Half-Life TFC.  I want the master sensitivity to 3, the master gain to 75, precision sensitivity and gain to 0 and 20, and precision button to physical button 0.  First, I would make a file named "halflife.orb" with the following contents:</para>
+	    <programlisting>
+--set-defaults
+--set-master-sensitivity 3
+--set-master-gain 75
+--set-precision-sensitivity 0
+--set-precision-gain 20
+--set-precision-button physical 0
+</programlisting>
+	    <para>I would then load this into the orb by typing:</para>
+	    <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol -f halflife.orb</userinput></screen>
+	  </example>
+	  <para>I recommend that you use the suffix ".orb" to denote orb configuration files and that you also include <command>--set-defaults</command> as the first line in every configuration file unless you nest files.</para>
+	  <para>Note that <emphasis>all</emphasis> orbcontrol commands are available from within batch files including <command>-f</command> and <command>--from-file</command>.  It is therefore possible to "link" <filename>.orb</filename> files into complex configurations.  The <command>orbcontrol</command> program will not protect you from infinite loops, though, so use some caution in creating complex configurations.</para>
+	</section>
+      </section>
+    </section>
+    <section>
+      <title>Advanced control</title>
+      <section>
+	<title>What is a sensitivity curve?</title>
+	<para>In general, users of the SpaceOrb demand a great deal of control over their input devices and demand as much configurability as possible.  One high-end input device, the upcoming Thrustmaster HOTAS Cougar (a $300 part!), offers the ability to modify the sensitivity curves used by the device to translate physical motion into logical response.  The <filename>hidsporb</filename> driver allows the user the same functionality.</para>
+	<para>The orb generates values ranging from -512 to +512; these values are converted internally to <filename>hidsporb</filename> through the given gain and polarity settings to a value between 0 and 1023.  The resultant number is then looked up in a table to return a number between 0 and 1023 to get the value sent to Windows and the DirectInput system.</para>
+	<para>The default curve 0 simply uses a linear table--in other words, entry 0 is the value 0, entry 512 is the value 512, and so on.  The next default curves (1-5) are simply built to follow a function that increasingly steepens the curve near the edges and flattens it near the center.</para>
+	<para>By creating a text file containing 1024 numbers, each ranging from 0 to 1023, a user can replace one of these sensitivity curves with a custom curve.  For example, a custom curve which consisted of 1024 repetitions of the number 0 would cause any axis assigned to that curve to always produce minimum values.  The <command>orbcontrol</command> program provides three commands for manipulating these curves.  I suggest you use the extension .crv for sensitivity curves.</para>
+      </section>
+      <section>
+	<title>Downloading sensitivity curves</title>
+	<para>To download a curve that the driver is already using, use the <command>--download-sensitivity-curve (curve number) (filename) command.  This will create a text file containing all the numbers used by the existing curve.</command></para>
+	<example>
+	  <title>Downloading the default curve 0 from the driver</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --download-sensitivity-curve 0 default0.crv</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>Creating and uploading custom sensitivity curves</title>
+	<para>Creating a <filename>.crv</filename> file is straightforward; simply create a text file consisting of nothing but numbers ranging from 0 to 1023.  Make sure you have included 1024 entries, at least, then upload the curve to the orb using the <command>--upload-sensitivity-curve (curve number) (filename)</command>:</para>
+	<example>
+	  <title>Sending a custom curve to the orb</title>
+	  <para>Suppose I want absolute boolean control of a given axis--either the character is at rest, or they are moving to the limits of their abilities.  I would then create a text file named "boolean.crv" and fill it with contents similar to this:</para>
+	  <programlisting>
+0
+0
+0
+0
+.
+.
+.
+(about 410 times)
+512
+512
+512
+.
+.
+.
+(about 204 times)
+1023
+1023
+1023
+.
+.
+.
+(about 412 times, bringing us up to 1024 entries)</programlisting>
+	  <para>I would then upload the curve to the orb using the command</para>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --upload-sensitivity-curve 5 boolean.crv</userinput></screen>
+	  <para>...but my work is not yet done.  In order to assign all axes to this curve, I must still use the command</para>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --set-master-sensitivity 5</userinput></screen>
+	</example>
+	<para>Note that the <command>gain</command> commands will still work in conjunction with custom sensitivity curves.</para>
+      </section>
+      <section>
+	<title>Resetting sensitivity curves</title>
+	<para>It is certainly possible to upload a curve that does not match what you really want; if you want to return to the default curves provided by the driver, either disable and re-enable the driver, reboot the system, or use the much simpler <command>--reset-sensitivity-curve</command>:</para>
+	<example>
+	  <title>Resetting curve 0 to driver defaults</title>
+	  <screen>
+<computeroutput>C:&gt; </computeroutput><userinput>orbcontrol --reset-sensitivity-curve 0</userinput></screen>
+	</example>
+      </section>
+      <section>
+	<title>Notes on sensitivity curves</title>
+	<para>Unlike most orb settings, which affect only the particular orb, the sensitivity curves apply to the driver as a whole and thus affect all orbs connected to a system.  This does not matter right now (since <filename>hidsporb</filename> only accepts one orb at the moment), but will matter in the future when multiple-orb support is added.</para>
+	<para>Setting custom sensitivity curves represents the ultimate in user-configurable control.  Indeed, it is possible to use custom curves instead of the usual gain, sensitivity, and polarity settings.  But it should be noted that gain and polarity are still in effect when using a custom sensitivity curve, so be aware of this when creating your own curves.</para>
+      </section>
+    </section>
+  </section>
+  <section>
+    <title>Configuring games for use with Hidsporb</title>
+    <para>The <filename>hidsporb</filename> driver represents the orb as a standard Human Input Device as far as Windows is concerned, making it a fully DirectX-compliant game controller.  As a result, any Windows game which uses a joystick through DirectX should work just fine with the driver.</para>
+    <para>Having said that, many games are a bit confusing to configure, because it doesn't occur to many game designers that some joysticks out there have more than two axes (and in the case of Id and Quake 3, for example, it doesn't occur to them that gamers use joysticks at all, it seems).</para>
+    <para>Old legacy applications may or may not see the SpaceOrb at all when using the <filename>hidsporb</filename> driver.  If the legacy application in question uses DirectInput, all should be well.  If it communicates directly with the serial port, it may or may not work.  If it relied on the old SpaceWare 4.81 drivers, you may be out of luck.  Luckily, almost all modern games rely on generic DirectInput support, which should be plenty.</para>
+    <para>Some of the beta testers for the <filename>hidsporb</filename> driver have graciously donated some sample configurations:</para>
+    <section>
+      <title>Sample <filename>.orb</filename> files</title>
+      <para>James Carter has donated some of his orb configuration files, which can be found in the <filename>game_configs\sample_configs</filename> subdirectory of the distribution.  Looking at the <filename>fast.orb</filename> configuration, note that James sets the gain on his movement axes to an astonishing 85--evidently he likes his orb to be extremely responsive in movement--but his rotation axes are only set to gain 55.  Experiment with configuration options--only you can tell what will work best for you.</para>
+    </section>
+    <section>
+      <title>Descent3</title>
+      <para>Also from James, a "pilot" file (<filename>pilot.plt</filename>) for Descent 3 is included in the <filename>game_configs/Descent3</filename> subdirectory.</para>
+    </section>
+    <section>
+      <title>Quake 2</title>
+      <para>Ken Yee donated his Quake2 configuration file, located in the <filename>game_configs\Quake2</filename> subdirectory.</para>
+    </section>
+    <section>
+      <title>Half-Life</title>
+      <para>Many thanks to John Radoicic for this one.  It is safe to say that one reason this whole project started was from my irritation at not being able to play Half-Life again, and once the driver was working, I was <emphasis>still</emphasis> not able to play Half-Life because I didn't understand its configuration correctly.  John came to my aid with his Half-Life configuration, included in the <filename>game_configs\Halflife</filename> subdirectory.  Copy the <filename>joystick.cfg</filename> and <filename>hlorb.cfg</filename> files to the <filename>valve</filename> subdirectory of your Half-life installation, and it <emphasis>should</emphasis> work fine from there.</para>
+    </section>
+  </section>
+  <section>
+    <title>How to contribute</title>
+    <section>
+      <title>A bit about myself</title>
+      <para>All in all, I have had an exceptional life, which am, overall, extremely pleased with.  On the other hand, a bit of background on myself is always amusing, and may point out shortcomings that could use contributions.</para>
+      <para>I am not, in fact, a computer programmer.</para>
+      <para>Well, I overstep myself there, actually.  I love software dearly, and have since my first encounter with the mighty Radio Shack TRS-80 and Commodore PET computers that I met waay back in 4th grade.  During the Apple Era I learned the arcane (?) Applesoft Basic and some rudimentary assembler, usually for nefarious purposes ("Call -151... b942:18 60..." and other favorites.  It is remarkable what cracking copy protection by hand can teach you about error checking, input/output systems, and general disk IO, really).  UCSD pascal was followed quickly by conversion to the more "icky" IBM XT series, with flirtations from there on into the Amiga, Linux, C, C++, and more exotic (but more fun!) languages like Eiffel, Python, Ruby, Ocaml, Haskell, and the like.</para>
+      <para>Being largely self-educated put a peculiar spin on everything, as did my family; I sort of devalued my computing abilities, and as far as my father (a bomber pilot) was concerned, computer programming was something that nerds did and was not an honorable profession.  Even so, I was almost as surprised as anyone else to find myself not going into computers at all, but in fact graduating from the US Air Force Academy with a pilot-training slot.  You never know what's going to happen, I guess.</para>
+      <para>In the intervening years, I still kept fairly active in computers, producing a games installer for a distribution company, a chaos demonstrator for the Academy's physics department, a graphics library for 2-d sprite-based games (yakIcons), a game using that library (Flynn Sprint), an issue-tracking database (yaktrack.sourceforge.net), a haskell-python-eiffel interoperability experiment (epolyglot.sourceforge.net), a lightweight C++ unit testing framework (yaktest.sourceforge.net), an Eiffel suite for developing palm pilot applications (epalm.sourceforge.net), and a ton of other crap which no one has much of a use for (grin).  I also managed to grab a masters' degree in Software Development and Management from Rochester' Institute of Technology's flexible distance learning program.</para>
+      <para>So the truth is that I am not, in fact, a <emphasis>professional</emphasis> computer programmer, although that is my goal.  I'm really just a grumpy UH-1N instructor pilot with delusions of grandeur (yes, I realize it sounds a touch odd saying that I want to leave military aviation because I find software development more exciting and rewarding... there's no accounting for taste, I guess.  It seemed a lot more interesting before I had to do it for several years).</para>
+      <para>So!  You are using a driver written by someone with little education in programming, who has limited time to contribute to the project, and who, before starting the hidsporb project, had never even looked at driver code before.  Ouch!</para>
+    </section>
+    <section>
+      <title>Technically</title>
+      <para>Despite the strangeness of the setup, I think the project is doing pretty well technically--after all, it works, and the latest release seems quite solid.  In addition, I don't have a way to make this a truly open-source project since much of the hidsporb source is adapted from Microsoft sample code, which is copyrighted.</para>
+      <para>Having said that, I will release the source to anyone who has agreed to Microsoft's DDK EULA.  I welcome code inspections (the more rigorous the better) as well as constructive criticism.</para>
+      <para>I also could always use suggestions for better or cleaner features, updated requirements, ideas on future improvements, etc.  Keep 'em coming.  I may not have time to act on all of them, but I will certainly consider them.</para>
+      <para>Finally, third-party software to assist in configuration of the orb is generally welcome.  Currently, Ken Yee is working hard on a graphical configuration program for the driver, so you may want to coordinate with him to prevent any duplication of effort.</para>
+    </section>
+    <section>
+      <title>Additional-configurations-arily</title>
+      <para>I don't play enough games!  In fact, it is somewhat amusing that I have devoted this much time to the SpaceOrb driver, because about the only game I play with it nowadays is Half-Life.  As a result, pretty much all game configuration files for the hidsporb driver will have to come from you, the devoted gamers of the world.  Send me your configuration files along with minor documentation!  I would love to include them in future releases.</para>
+    </section>
+    <section>
+      <title>Postcard-and-letter-arily</title>
+      <para>Strange as it may sound, one of the greatest rewards of this process is simply the satisfaction of knowing that I have solved someone's problem, even if that problem is as "insignificant" as getting a game to work (which sometimes seems pretty darn significant!).  Email works well, but there is something magical about seeing a postcard or actual letter from someone who appreciates a product.  I certainly do not require this, not by a long shot!  But if you are so inclined, the following mailbox should be valid for at least the first half of 2002:</para>
+      <address>
+<firstname>Victor</firstname><surname>Putz</surname>
+<street>11024 Montgomery Ave #172</street>
+<city>Albuquerque</city>
+<state>NM</state><postcode>87111</postcode>
+</address>
+    </section>
+    <section>
+      <title>Monetarily</title>
+      <para>In my, oh, 20+ years of computer experience, I have had exactly two projects (the installer, which I wrote for $400, and Flynn Sprint, which garnered me a remarkable $4700) which have paid me any monetary value.  So my earnings from the computer industry have totaled about $5100 and a lot of pizzas from my roommates at the Academy.</para>
+      <para>With that in mind, your letters of appreciation and encouragement are, um... swell (grin).</para>
+      <para>Actually, the letters of appreciation and encouragement are <emphasis>outstanding</emphasis>, and are basically the only reason the driver has made it this far.  I cannot stress enough the importance of a supportive and enthusiastic user community; <emphasis>you</emphasis> make the difference even if all you ever do is say "hey, it's great that you're doing this."</para>
+      <para>Having said that, I have received a number of emails from folks who desired to contribute monetarily (via Paypal, usually).</para>
+      <para>I feel a little strange about this, because I never expected it.  In fact, it took a great deal of discussion with my wife before I could even come to grips with the idea that it might not be unethical to accept monetary donations.</para>
+      <para>I stress again: this is an <emphasis>unsupported</emphasis> driver with <emphasis>no</emphasis> warranty at all.  You do not owe me anything for this driver.  It is provided because I saw a need, not because I expected anything in return.  <emphasis>Only</emphasis> contribute money if you truly want to.</para>
+      <para>If, after all that waffling, you think this should be my third-ever paid computing venture and would like to send me a donation, then click on the Paypal link below:</para>
+    </section>
+  </section>
+  <section>
+    <title>Acknowledgements</title>
+    <formalpara>
+      <title>Yuri Chebatarov</title>
+      <para>Yuri saw my message on the Microsoft device driver developers' bulletin board and contacted me about sharing ideas; he wanted to write a mouse driver for the orb.  What followed from there was several weeks of very strange correspondence; without question, Yuri knows more than me about device drivers, but due to the strange customs of the former Soviet Union (Yuri lives in Tomsk, Russia) he was unable to get an actual orb to practice from.  We developed a sort of Sherlock-and-Mycroft relationship, where I would do much of the actual codeslinging and then send Yuri snapshots, which he would digest and comment on.  While the amount of actual code contributed by Yuri may be low, he provided information that was absolutely critical; in particular, I may never have gotten the input loop working without his help.  He has been invaluable in the process of developing this driver, and thanks to John Radoic, will hopefully have an orb soon and will be much more active with version two (when his mouse support will hopefully see the light of day).  The significance of an American military helicopter pilot corresponding with a Russian software developer to produce a device driver for a gaming toy has not escaped me; when I was a child, the Russians were the Great Enemy.  It is truly a marvelous time to be alive.</para>
+    </formalpara>
+    <formalpara>
+      <title>John Radocic</title>
+      <para>John gets credit for being the first person to have materially contributed to this project by providing a SpaceOrb and shipping to Yuri, above.  Many thanks to John for his generous contribution.  In addition, John was better able than me to sort out the puzzle of Half-life game configuration using the new driver.</para>
+    </formalpara>
+    <formalpara>
+      <title>Jay Crowe</title>
+      <para>For several years Jay has run the only surviving SpaceOrb community support website.  This is not a trivial undertaking.  For several years I have mooched happily from Jay's website; it is a pleasure to contribute back.</para>
+    </formalpara>
+    <formalpara>
+      <title>Ken Yee</title>
+      <para>I detest GUI programming, which is why I am entranced with Linux and why the hidsporb driver is natively controlled by a command-line program.  It is also why I am guaranteed commercial failure unless I change my ways!  Ken has already begun work on a GUI-oriented shell for the orbcontrol code which will eventually make configuring the orb a pleasure.  Ken also did independent research to figure out what directions the axes should "point" in in order to comply with the HID standard.  Many thanks to Ken.</para>
+    </formalpara>
+    <formalpara>
+      <title>James Carter</title>
+      <para>James finishes up the lot of my four original beta testers (starting with Jay and Ken and proceeding to include James and John).  Good testers are notoriously hard to find, and these four did a great job of beating the thing up for several weeks to help ensure a trouble-free launch</para>
+    </formalpara>
+    <formalpara>
+      <title>John Grantham</title>
+      <para>With only a few days to go, I realized that I didn't have anything approaching an installation guide for the orb.  Several folks volunteered, but John got to me first.  The screenshots and much of the text in the "installation" section of this manual are due to his last-minute work.</para>
+    </formalpara>
+    <formalpara>
+      <title>Jo Carter</title>
+      <para>No relation to James, Jo is my wife of almost ten years (we married the day after my graduation from the Academy, and have bucked the remarkably high failure rate of USAFA June Week weddings).  Despite all the pressure from family and associates to abandon thoughts of software and make military aviation my career, she has supported me in all my computing efforts, even to the point of negotiating deals to publish Flynn Sprint, my first (and to date only) game.  Since I do most of my computer work at home, my time with her over the past few weeks has suffered a bit, but she has not begrudged it at all.  I could not have married a finer woman.  (Incidentally: I occasionally field questions about why my wife does not share my last name.  Primarily, it is because I courted her as Jo Carter, and was so pleased that I certainly saw no reason for her to change anything after our marriage.  Secondly--would <emphasis>you</emphasis> have wanted to adopt the name "Putz"?)</para>
+    </formalpara>
+    <formalpara>
+      <title>The SpaceOrb Community</title>
+      <para>When I published Flynn Sprint, I had a fairly active community of beta testers who provided constant feedback and encouragement.  In all my other computer endeavors, I never had anything approaching that until now, and had forgotten how much of a motivator it can be.  Nothing is more pleasant than knowing that I have helped to solve a problem, and that people appreciate the product.  Without the community, this would never even have made it to beta.  I owe you a great debt.</para>
+    </formalpara>
+  </section>
+</article>

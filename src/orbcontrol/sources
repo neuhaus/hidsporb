@@ -1,0 +1,29 @@
+TARGETNAME=orbcontrol
+TARGETTYPE=PROGRAM
+TARGETPATH=obj
+
+UMTYPE=console
+UMENTRY=main
+
+MSC_WARNING_LEVEL=-W3 -WX
+
+INCLUDES=..;\ntddk\inc\ddk;\ntddk\inc;
+
+USER_C_FLAGS=-GX
+        
+TARGETLIBS=\
+$(DDK_LIB_PATH)\hid.lib \
+$(SDK_LIB_PATH)\setupapi.lib
+
+USE_MSVCRT=1
+USE_MAPSYM=1
+
+SOURCES= \
+orbcontrol.cpp \
+orb_control.cpp \
+..\validity.c \
+..\charts.c
+
+
+
+         
