@@ -426,6 +426,11 @@ OrbNotifyArrival(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
   ObReferenceObject(devObj);
   // Loose file reference (close COM port)
   ObDereferenceObject(fileObj);
+  // Force PNP to rescan our BUS
+  if (devExt->Started) {
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyArrival(): invdevrel sent\n"));
+      //IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
+  }
   // Release remove lock
   IoReleaseRemoveLock(&devExt->RemoveLock, ctx);
 failed:
@@ -439,7 +444,37 @@ failed:
 VOID
 OrbNotifyRemoval(IN PDEVICE_OBJECT fdo, IN PORB_NOTIFY_CONTEXT ctx)
 {
+  PDEVICE_EXTENSION devExt;
+  PPDO_EXTENSION pdevExt;
+  ULONG i, found = 0, len;
+
   DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): enter\n"));
+  // Get FDO device extension
+  devExt = (PDEVICE_EXTENSION) ctx->fdo->DeviceExtension;
+  // Get symlink len
+  len = wcslen(ctx->linkName);
+  // Lock PDOs array
+  OrbLockPdos(devExt);
+  // Find device by linkName and delete it
+  for (i = 0; i < devExt->numDevices; i++) {
+       pdevExt = (PPDO_EXTENSION) devExt->devArray[i]->DeviceExtension;
+       if (RtlCompareMemory(pdevExt->linkName, ctx->linkName, len) == len) {
+           DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): found dev %ws\n", ctx->linkName));
+           // Found device, remove it from array
+           devExt->devArray[i] = NULL;
+           found = 1;
+           break;
+       }
+  }
+  if (found) {
+      devExt->numDevices--;
+  }
+  // Unlock PDOs array
+  OrbUnlockPdos(devExt);
+  if (found) {
+      DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): invdevrel sent\n"));
+      //IoInvalidateDeviceRelations(devExt->busPdo, BusRelations);
+  }
   DbgOut( ORB_DBG_NOTIFY, ("OrbNotifyRemoval(): exit\n"));
 }
 

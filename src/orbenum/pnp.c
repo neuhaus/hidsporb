@@ -68,6 +68,8 @@ OrbEnumAddDevice(IN PDRIVER_OBJECT DriverObject, IN PDEVICE_OBJECT pdo)
 
   devExt = (PDEVICE_EXTENSION) devObj->DeviceExtension;
 
+  // Save bus PDO for reference
+  devExt->busPdo = pdo;
   // Attach to BUS device stack
   // in our case we will have root bus created PDO
   devExt->nextDevObj = IoAttachDeviceToDeviceStack(devObj, pdo);

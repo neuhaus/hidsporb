@@ -31,6 +31,7 @@ typedef struct _DEVICE_EXTENSION {
 	PDEVICE_OBJECT	fdo;		// our bus FDO
 	IO_REMOVE_LOCK	RemoveLock;	// Remove lock
 	// END OF common extension block
+	PDEVICE_OBJECT	busPdo;		// Bus pdo, not attached dev
 	FAST_MUTEX	devArrayMutex;	// Mutex for protecting array
 	ULONG		numDevices;	// Number of PDOs
 	PDEVICE_OBJECT	devArray[ORB_MAX_DEVICES];	// Orbs array

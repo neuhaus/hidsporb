@@ -76,7 +76,7 @@ OrbPdoPnp(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
   UCHAR func;
   PAGED_CODE();
 
-  pdevExt = (PDEVICE_EXTENSION) pdo->DeviceExtension;
+  pdevExt = (PPDO_EXTENSION) pdo->DeviceExtension;
   irpSp = IoGetCurrentIrpStackLocation(Irp);
   func = irpSp->MinorFunction;
   DbgOut( ORB_DBG_PDO, ("OrbPdoPnp(): enter %s\n", PnpToString(func)));
@@ -92,8 +92,8 @@ OrbPdoPnp(IN PDEVICE_OBJECT pdo, IN PIRP Irp)
       // These requests always succeed
     case IRP_MN_REMOVE_DEVICE:
       // dbg dbg special handling
-      status = OrbPdoRemove(pdo, Irp);
-      break;
+      //status = OrbPdoRemove(pdo, Irp);
+      //break;
       // Note, maybe we should pass these
       // Requests to lower driver?
     case IRP_MN_START_DEVICE:

@@ -123,6 +123,7 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   UNICODE_STRING symName;
   ULONG i;
   PDEVICE_EXTENSION devExt;
+  PPDO_EXTENSION pdevExt;
   NTSTATUS status;
 
   DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): enter\n"));
@@ -142,6 +143,9 @@ OrbFdoRemove(IN PDEVICE_OBJECT fdo, IN PIRP Irp)
   for (i = 0; i < devExt->numDevices; i++) 
     {
       DbgOut( ORB_DBG_FDO, ("OrbFdoRemove(): deleting %d PDO %p\n", i, devExt->devArray[0]));
+      pdevExt = (PPDO_EXTENSION) devExt->devArray[i]->DeviceExtension;
+      // Free link name
+      ExFreePool(pdevExt->linkName);
       IoDeleteDevice(devExt->devArray[i]);
     }
   // Unregister notification callback
