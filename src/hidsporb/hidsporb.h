@@ -34,6 +34,7 @@ typedef struct _DEVICE_EXTENSION {
 	// queue stuff
 	KSPIN_LOCK	readQueueLock;	// Spin lock
 	LIST_ENTRY	readQueueList;	// List
+	NPAGED_LOOKASIDE_LIST readQueuePool;	// Lookaside list
 	ULONG		readsPending;	// Reads pending
 } DEVICE_EXTENSION, *PDEVICE_EXTENSION;
 

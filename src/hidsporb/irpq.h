@@ -10,6 +10,9 @@ typedef struct _ORB_QUEUE_ITEM {
 VOID
 OrbInitReadQueue(IN PDEVICE_EXTENSION devExt);
 
+VOID
+OrbCleanupReadQueue(IN PDEVICE_EXTENSION devExt);
+
 NTSTATUS
 OrbQueueReadReport(IN PDEVICE_EXTENSION devExt, IN PIRP Irp);
 

@@ -10,8 +10,24 @@
 VOID
 OrbInitReadQueue(IN PDEVICE_EXTENSION devExt)
 {
+	// Initialize read queue and spinlock
 	KeInitializeSpinLock(&devExt->readQueueLock);
 	InitializeListHead(&devExt->readQueueList);
+	// Initialize NonPaged lookaside list
+	ExInitializeNPagedLookasideList(&devExt->readQueuePool,
+					NULL,
+					NULL,
+					NonPagedPool,
+					sizeof(ORB_QUEUE_ITEM),
+					'QbrO',
+					16);
+}
+
+// Clean up read queue
+VOID
+OrbCleanupReadQueue(IN PDEVICE_EXTENSION devExt)
+{
+	ExDeleteNPagedLookasideList(&devExt->readQueuePool);
 }
 
 // Place READ_REPORT on queue and 
@@ -21,8 +37,10 @@ OrbQueueReadReport(IN PDEVICE_EXTENSION devExt, IN PIRP Irp)
 	PORB_QUEUE_ITEM item;
 	NTSTATUS status = STATUS_INSUFFICIENT_RESOURCES;
 
-	// Allocate queue item
-	item = (PORB_QUEUE_ITEM) ExAllocatePoolWithTag(NonPagedPool, sizeof(ORB_QUEUE_ITEM), 'QbrO');
+	// New way:
+	// We allocate item from lookaside list, this is more effective
+	// and pool doesn't get fragmented.
+	item = ExAllocateFromNPagedLookasideList(&devExt->readQueuePool);
 	// Fail if no memory
 	if (item == NULL) {
 		// Bad luck
@@ -72,8 +90,9 @@ OrbFlushQueue(IN PDEVICE_EXTENSION devExt, NTSTATUS status)
 	while (item) {
 		// Complete IR
 		CompleteIrp(item->Irp, status, 0);
-		// Free Item
-		ExFreePool(item);
+		// New way: NPaged lookaside list
+		// Free item
+		ExFreeToNPagedLookasideList(&devExt->readQueuePool, item);
 		// Dequeue next element
 		item = OrbDequeueReadReport(devExt);
 	}
