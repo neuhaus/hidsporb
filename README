@@ -1,0 +1,57 @@
+HIDSporb, the open-source Win32 HID Minidriver for the Spacetec Spaceorb 360
+
+The Spacetec Spaceorb 360 is an outstanding 3d game controller which
+supports six axes and six physical buttons on an intuitive game
+device. It is a great deal of fun to use and was my favorite
+controller for first-person shooters for years. 
+
+Unfortunately, Spacetec fell by the wayside and the orb itself was
+unsupported for years. When Microsoft operating systems moved toward
+the WDM model for drivers, Spaceorb users knew they were in trouble;
+when Windows 2000 and XP required WDM drivers, we were simply out of
+luck--there was no support for the mighty orb. 
+
+After perusing some sample source code for windows drivers in fall of
+2001, I decided that it might be possible to write a HID minidriver
+which would represent the Spaceorb as a HID-compatible gaming device;
+a few months and several hundred blue-screen-of-death reboots later, I
+was able to play Half-life with the orb... and any other game which
+supported DirectInput gaming devices followed suit. From suggestions
+garnered by testers of the driver, we added several features; in some
+ways the HIDSporb driver is actually more powerful than even the
+original Spacetec driver: 
+
+    * Completely redefinable axis maps, allowing any physical axis to
+      control any logical axis
+
+    * Togglable "Chording", allowing two buttons on the orb to select
+      logical pages for the other four buttons, allowing the orb's six
+      physical buttons to represent up to sixteen logical buttons
+
+    * Selectable gain and sensitivity on each physical axis
+      independently, allowing the user to tune the orb's response on
+      any axis to their liking
+
+    * Complete user-definable response curves, so that motivated users
+      can completely define the response of an axis
+
+    * "Precision mode" which allows the user to select a different
+      response curve for axes when a button is pressed, allowing for
+      spectacular precision when necessary combined with rapid motion
+      when precision is not necessary
+
+
+More features (such as keyboard or mouse emulation) or support for
+more devices may be added in the future depending on how our time
+permits.  The hidsporb driver is entirely a volunteer project.  It is
+hosted on sourceforge.net, with the home page 
+
+http://hidsporb.sourceforge.net
+
+The authors have spent a considerable amount of time and effort on the
+driver, and our testers have spent a considerable amount of time and
+effort making sure it works correctly.  What you do with it now is of
+interest to us all.
+
+Victor B. Putz
+vputz@nyx.net

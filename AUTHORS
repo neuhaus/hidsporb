@@ -1,0 +1,5 @@
+Victor B. Putz        Main driver module, initial driver organization
+                      and installation, documentation, packaging
+
+Yuri Chebotarev       "Hard parts" of the driver (read polling thread,
+                      etc), orbenum driver.
