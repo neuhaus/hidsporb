@@ -1,3 +1,8 @@
+This is a copy of the code imported into git from the CVS repository at 
+https://sourceforge.net/projects/hidsporb/
+
+-----------------
+
 HIDSporb, the open-source Win32 HID Minidriver for the Spacetec Spaceorb 360
 
 The Spacetec Spaceorb 360 is an outstanding 3d game controller which
